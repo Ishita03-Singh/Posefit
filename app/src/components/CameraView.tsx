@@ -2,7 +2,9 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { type Facing, useCamera } from '../camera/useCamera'
 import { grabFrame } from '../capture/photo'
+import type { ShootingMode } from '../coach/cues'
 import { type PoseTemplate, TEMPLATES } from '../pose/template'
+import { tilt } from '../sensors/tilt'
 import { SessionEngine, type SessionSnapshot } from '../session/engine'
 import type { ModelVariant } from '../vision/poseDetector'
 import { usePoseDetector } from '../vision/usePoseDetector'
@@ -25,6 +27,7 @@ const INITIAL_SNAPSHOT: SessionSnapshot = {
   matched: false,
   scanProgress: null,
   hasShape: false,
+  roll: null,
 }
 
 export function CameraView({ onExit }: Props) {
@@ -41,6 +44,7 @@ export function CameraView({ onExit }: Props) {
   const [ringLight, setRingLight] = useState(false)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [posesOpen, setPosesOpen] = useState(false)
+  const [friendMode, setFriendMode] = useState(true)
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(INITIAL_SNAPSHOT)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -50,12 +54,21 @@ export function CameraView({ onExit }: Props) {
   const detectorState = usePoseDetector(variant)
   const detector = detectorState.status === 'ready' ? detectorState.detector : null
   const mirrored = facing === 'user'
+  // With the rear camera someone else usually holds the phone; the selfie camera means you're alone.
+  const mode: ShootingMode = !mirrored && friendMode ? 'friend' : 'self'
 
   // --- engine wiring -------------------------------------------------------
 
   useEffect(() => engine.setTemplate(template), [engine, template])
   useEffect(() => engine.setAuto(auto), [engine, auto])
-  useEffect(() => engine.setOptions({ showSkeleton, flipPose }), [engine, showSkeleton, flipPose])
+  useEffect(
+    () => engine.setOptions({ showSkeleton, flipPose, mode, facing }),
+    [engine, showSkeleton, flipPose, mode, facing],
+  )
+  useEffect(() => {
+    tilt.start()
+    return () => tilt.stop()
+  }, [])
   useEffect(() => engine.setVoice(voiceOn), [engine, voiceOn])
 
   // First time on this device: scan the body so the ghost takes the person's own shape.
@@ -151,13 +164,17 @@ export function CameraView({ onExit }: Props) {
           <button type="button" onClick={onExit}>
             Close
           </button>
-          {snapshot.score !== null && template && (
+          {snapshot.roll !== null && <Level roll={snapshot.roll} />}
+          {snapshot.score !== null && template ? (
             <span className={`score${snapshot.matched ? ' matched' : ''}`}>{Math.round(snapshot.score)}%</span>
+          ) : (
+            <span />
           )}
         </div>
         <p className={`message${snapshot.matched ? ' matched' : ''}`} aria-live="polite">
           {snapshot.countdown === null ? message : ''}
         </p>
+        {mode === 'friend' && <p className="sub">Friend mode: directions are for the person holding the phone</p>}
         {template && !auto && <p className="sub">Auto capture paused · tap to resume</p>}
         {detector && camera.status === 'ready' && (
           <p className="metrics">
@@ -207,6 +224,11 @@ export function CameraView({ onExit }: Props) {
           <Toggle on={flipPose} onClick={() => setFlipPose((f) => !f)} disabled={!template}>
             Other side
           </Toggle>
+          {!mirrored && (
+            <Toggle on={friendMode} onClick={() => setFriendMode((f) => !f)}>
+              Friend shooting
+            </Toggle>
+          )}
           {mirrored && (
             <Toggle on={ringLight} onClick={() => setRingLight((r) => !r)}>
               Ring light
@@ -263,5 +285,15 @@ function Toggle({ on, onClick, disabled, children }: ToggleProps) {
     <button type="button" className={`toggle${on ? ' on' : ''}`} aria-pressed={on} onClick={onClick} disabled={disabled}>
       {children}
     </button>
+  )
+}
+
+/** Spirit level: the line stays parallel to the real horizon; green when the phone is level. */
+function Level({ roll }: { roll: number }) {
+  const level = Math.abs(roll) < 2
+  return (
+    <span className={`level${level ? ' ok' : ''}`} role="img" aria-label={level ? 'Phone is level' : 'Phone is tilted'}>
+      <span style={{ transform: `rotate(${roll}deg)` }} />
+    </span>
   )
 }

@@ -2,6 +2,7 @@ import { type Anchor, anchorFor, type BodyPoints } from '../pose/body'
 import { angleDiff, angleOf, add, dist, mid, scale, sub, type Vec } from '../pose/geometry'
 import type { LandmarkName } from '../pose/landmarks'
 import type { PoseTemplate } from '../pose/template'
+import { type Cue, cameraCue, subjectCue } from '../coach/cues'
 import { anchorPoints, type Ghost, HEAD_ROOM } from './fit'
 
 type JointRef = LandmarkName | 'mid_hip' | 'mid_shoulder'
@@ -71,7 +72,7 @@ export interface MatchResult {
   /** Pose is still good enough to continue a capture already in progress (looser). */
   holding: boolean
   /** Most important single instruction, or null when everything looks good. */
-  hint: string | null
+  cue: Cue | null
 }
 
 function get(points: BodyPoints, ref: JointRef): Vec | undefined {
@@ -98,7 +99,7 @@ const PART_NAME: Record<Part, string> = {
  * Instruction that moves the bone's end toward the ghost's direction.
  * Raw image +x is the person's own left when they face the camera.
  */
-function boneHint(bone: ScoredBone, user: BodyPoints, ghost: BodyPoints): string | null {
+function boneHint(bone: ScoredBone, user: BodyPoints, ghost: BodyPoints): Cue | null {
   const us = get(user, bone.from)
   const ue = get(user, bone.to)
   const gs = get(ghost, bone.from)
@@ -108,14 +109,15 @@ function boneHint(bone: ScoredBone, user: BodyPoints, ghost: BodyPoints): string
   const len = dist(us, ue)
   const ghostDir = scale(sub(ge, gs), 1 / Math.max(dist(gs, ge), 1e-6))
   const d = sub(add(us, scale(ghostDir, len)), ue)
+  const cue = (text: string) => subjectCue(`pose:${text}`, text)
 
-  if (bone.part === 'torso') return `Lean to your ${d[0] > 0 ? 'left' : 'right'}`
-  if (bone.part === 'head') return `Tilt your head to your ${d[0] > 0 ? 'left' : 'right'}`
+  if (bone.part === 'torso') return cue(`Lean to your ${d[0] > 0 ? 'left' : 'right'}`)
+  if (bone.part === 'head') return cue(`Tilt your head to your ${d[0] > 0 ? 'left' : 'right'}`)
 
   const thing = `your ${bone.side} ${PART_NAME[bone.part]}`
-  if (Math.abs(d[1]) >= Math.abs(d[0])) return d[1] < 0 ? `Raise ${thing}` : `Lower ${thing}`
+  if (Math.abs(d[1]) >= Math.abs(d[0])) return cue(d[1] < 0 ? `Raise ${thing}` : `Lower ${thing}`)
   const outward = bone.side === 'left' ? 1 : -1
-  return d[0] * outward > 0 ? `Move ${thing} out` : `Bring ${thing} in`
+  return cue(d[0] * outward > 0 ? `Move ${thing} out` : `Bring ${thing} in`)
 }
 
 /** Edge of the frame the pose would be cut off at, if the ghost were drawn on this person. */
@@ -132,31 +134,41 @@ function cutOff(ghost: Ghost, anchor: Anchor): 'top' | 'bottom' | 'left' | 'righ
   return null
 }
 
-function framingHint(
-  edge: ReturnType<typeof cutOff>,
-  p: Placement,
-  shot: PoseTemplate['shot'],
-): string | null {
+function framingHint(edge: ReturnType<typeof cutOff>, p: Placement, shot: PoseTemplate['shot']): Cue | null {
   const selfie = shot === 'selfie'
-  const tooClose = selfie ? 'Hold the phone further away' : 'Step back'
-  const tooFar = selfie ? 'Bring the phone closer' : 'Step closer'
-  // Person at +x is toward their own left: they should move to their right (or the phone to their left).
-  const sideways = (towardTheirRight: boolean) =>
-    selfie
-      ? `Move the phone to your ${towardTheirRight ? 'left' : 'right'}`
-      : `Move to your ${towardTheirRight ? 'right' : 'left'}`
+  const tooClose = cameraCue(
+    'frame:too-close',
+    selfie ? 'Hold the phone further away' : 'Step back',
+    'Move back a few steps',
+  )
+  const tooFar = cameraCue('frame:too-far', selfie ? 'Bring the phone closer' : 'Step closer', 'Move closer to them')
+  // Raw image +x: toward the person's own left, and toward the right of a rear-camera picture.
+  // Self: the person moves to their right (or the phone to their left).
+  // Friend: the photographer turns the phone toward where the person is.
+  const sideways = (personAtPlusX: boolean) =>
+    cameraCue(
+      `frame:side:${personAtPlusX}`,
+      selfie
+        ? `Move the phone to your ${personAtPlusX ? 'left' : 'right'}`
+        : `Move to your ${personAtPlusX ? 'right' : 'left'}`,
+      `Turn the phone a little to the ${personAtPlusX ? 'right' : 'left'}`,
+    )
+  const aim = (down: boolean) =>
+    cameraCue(
+      `frame:aim:${down}`,
+      selfie
+        ? down
+          ? 'Lower the phone a little'
+          : 'Raise the phone a little'
+        : down
+          ? 'Point the camera a bit lower'
+          : 'Point the camera a bit higher',
+      down ? 'Tilt the phone down a little' : 'Tilt the phone up a little',
+    )
 
   if (edge === 'top' || edge === 'bottom') {
     // Cut off at one edge only because they are off-centre vertically? Then aim, else step back.
-    if (p.ratio <= 1 + TIGHT.ratio && Math.abs(p.dy) >= TIGHT.dy) {
-      return edge === 'bottom'
-        ? selfie
-          ? 'Lower the phone a little'
-          : 'Point the camera a bit lower'
-        : selfie
-          ? 'Raise the phone a little'
-          : 'Point the camera a bit higher'
-    }
+    if (p.ratio <= 1 + TIGHT.ratio && Math.abs(p.dy) >= TIGHT.dy) return aim(edge === 'bottom')
     return tooClose
   }
   if (edge === 'left' || edge === 'right') return p.ratio > 1 + TIGHT.ratio ? tooClose : sideways(edge === 'right')
@@ -174,12 +186,17 @@ function framingHint(
 export function matchPose(user: BodyPoints | null, ghost: Ghost, template: PoseTemplate): MatchResult {
   const boneScores: (number | null)[] = SCORED_BONES.map(() => null)
   const none = { score: 0, placement: null, anchor: null, boneScores, ready: false, holding: false }
-  if (!user || Object.keys(user).length === 0) return { ...none, hint: 'Step into the frame' }
+  if (!user || Object.keys(user).length === 0) {
+    return { ...none, cue: cameraCue('frame:empty', 'Step into the frame', 'Point the camera at them') }
+  }
 
   const anchor = anchorFor(user, template.frame)
   if (!anchor) {
-    const hint = template.frame === 'torso' ? 'Step back so I can see you from head to hips' : 'Show your face and shoulders'
-    return { ...none, hint }
+    const cue =
+      template.frame === 'torso'
+        ? cameraCue('frame:torso', 'Step back so I can see you from head to hips', 'Move back so their whole body fits')
+        : cameraCue('frame:head', 'Show your face and shoulders', 'Get their face and shoulders in the frame')
+    return { ...none, cue }
   }
   const g = ghost.anchor
   const placement: Placement = {
@@ -233,12 +250,13 @@ export function matchPose(user: BodyPoints | null, ghost: Ghost, template: PoseT
   const ready = edge === null && placementWithin(placement, TIGHT) && worstKey >= GREEN && worstAny >= AMBER
   const holding = placementWithin(placement, LOOSE) && worstKey >= 0.6 && worstAny >= 0.35
 
-  let hint = framing
-  if (!hint && worst) {
+  let cue = framing
+  if (!cue && worst) {
     const { bone, missing } = worst
-    hint = missing
-      ? `I can't see your ${bone.side ? `${bone.side} ` : ''}${PART_NAME[bone.part]}`
+    const part = `${bone.side ? `${bone.side} ` : ''}${PART_NAME[bone.part]}`
+    cue = missing
+      ? cameraCue(`missing:${part}`, `I can't see your ${part}`, `Their ${part} is out of view`)
       : boneHint(bone, user, ghost.points)
   }
-  return { score, placement, anchor, boneScores, ready, holding, hint }
+  return { score, placement, anchor, boneScores, ready, holding, cue }
 }

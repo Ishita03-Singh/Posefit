@@ -40,7 +40,7 @@ describe('matchPose', () => {
     const r = matchPose(user, ghost, template)
     expect(r.score).toBeCloseTo(100)
     expect(r.placement!.ratio).toBeCloseTo(1)
-    expect(r.hint).toBeNull()
+    expect(r.cue).toBeNull()
     expect(r.ready).toBe(true)
   })
 
@@ -63,7 +63,7 @@ describe('matchPose', () => {
     const o = ghost.anchor.origin
     const far = transform(user, (p) => [o[0] + (p[0] - o[0]) * 0.5, o[1] + (p[1] - o[1]) * 0.5])
     const r = matchPose(far, ghost, template)
-    expect(r.hint).toBe('Step closer')
+    expect(r.cue?.self).toBe('Step closer')
     expect(r.ready).toBe(false)
   })
 
@@ -73,7 +73,7 @@ describe('matchPose', () => {
     // Slightly bigger (within size tolerance) and lower, so the feet leave the frame.
     const close = transform(user, (p) => [o[0] + (p[0] - o[0]) * 1.25, o[1] + (p[1] - o[1]) * 1.25 + 0.06 * H])
     const r = matchPose(close, ghost, template)
-    expect(r.hint).toBe('Step back')
+    expect(r.cue?.self).toBe('Step back')
     expect(r.ready).toBe(false)
   })
 
@@ -81,7 +81,7 @@ describe('matchPose', () => {
     const { ghost, user } = setup()
     // +x in the raw frame is the person's own left, so they need to move to their right.
     const shifted = transform(user, (p) => [p[0] + ghost.anchor.unit * 0.9, p[1]])
-    expect(matchPose(shifted, ghost, template).hint).toBe('Move to your right')
+    expect(matchPose(shifted, ghost, template).cue?.self).toBe('Move to your right')
   })
 
   it('pose score is independent of where the person stands', () => {
@@ -98,7 +98,7 @@ describe('matchPose', () => {
     user.left_wrist = add(elbow, [0, forearm])
     const r = matchPose(user, ghost, template)
     expect(r.score).toBeLessThan(50)
-    expect(r.hint).toBe('Bring your left hand in')
+    expect(r.cue?.self).toBe('Bring your left hand in')
     expect(r.ready).toBe(false)
   })
 
@@ -106,7 +106,7 @@ describe('matchPose', () => {
     const { ghost, user } = setup()
     delete user.left_wrist
     const r = matchPose(user, ghost, template)
-    expect(r.hint).toBe("I can't see your left hand")
+    expect(r.cue?.self).toBe("I can't see your left hand")
     expect(r.ready).toBe(false)
   })
 })
@@ -175,5 +175,21 @@ describe('fit', () => {
       expect(y).toBeGreaterThan(0)
       expect(y).toBeLessThan(H)
     }
+  })
+})
+
+describe('friend mode wording', () => {
+  it('tells the photographer which way to turn the phone', () => {
+    const { ghost, user } = setup()
+    // Person appears to the right in the picture: the photographer turns the phone right.
+    const shifted = transform(user, (p) => [p[0] + ghost.anchor.unit * 0.9, p[1]])
+    expect(matchPose(shifted, ghost, template).cue?.friend).toBe('Turn the phone a little to the right')
+  })
+
+  it('relays pose corrections to the subject through the photographer', () => {
+    const { ghost, user } = setup()
+    const elbow = user.left_elbow!
+    user.left_wrist = add(elbow, [0, dist(elbow, user.left_wrist!)])
+    expect(matchPose(user, ghost, template).cue?.friend).toBe('Ask them to bring their left hand in')
   })
 })

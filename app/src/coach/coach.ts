@@ -2,10 +2,10 @@
  * Turns per-frame hints into calm guidance: a hint must persist briefly before it is shown
  * (no flicker between two instructions), and speech is rate-limited.
  */
-export class HintStabilizer {
+export class HintStabilizer<T extends { key: string }> {
   private candidate: string | null = null
   private candidateSince = 0
-  current: string | null = null
+  current: T | null = null
 
   private readonly settleMs: number
 
@@ -13,12 +13,16 @@ export class HintStabilizer {
     this.settleMs = settleMs
   }
 
-  update(hint: string | null, now: number): string | null {
-    if (hint !== this.candidate) {
-      this.candidate = hint
+  /** Hints are compared by `key`, since an equal hint is usually a new object every frame. */
+  update(hint: T | null, now: number): T | null {
+    const key = hint?.key ?? null
+    if (key !== this.candidate) {
+      this.candidate = key
       this.candidateSince = now
     }
-    if (hint !== this.current && now - this.candidateSince >= this.settleMs) this.current = hint
+    if (key !== (this.current?.key ?? null) && now - this.candidateSince >= this.settleMs) this.current = hint
+    // Same key: keep the latest object (its wording may depend on the shooting mode).
+    else if (key !== null && key === this.current?.key) this.current = hint
     return this.current
   }
 

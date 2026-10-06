@@ -1,14 +1,17 @@
 import { ARMED, type CapturePhase, type CaptureState, OFF, secondsLeft, step } from '../capture/autoCapture'
 import { HintStabilizer, Voice } from '../coach/coach'
+import { composition } from '../coach/composition'
+import { type Cue, cueSpeech, cueText, type ShootingMode } from '../coach/cues'
 import { anchorPoints, flipTemplate, placeGhost, retarget } from '../match/fit'
 import { type MatchResult, matchPose } from '../match/match'
 import { drawBody } from '../overlay/drawBody'
 import { drawSkeleton } from '../overlay/drawSkeleton'
-import { type Anchor, type BodyPoints, toPixels } from '../pose/body'
+import { type Anchor, anchorFor, type BodyPoints, toPixels } from '../pose/body'
 import type { Keypoint } from '../pose/landmarks'
 import { BodyProfile } from '../pose/profile'
 import { type BodyShape, loadShape, type MaskView, measure, saveShape, ShapeScanner } from '../pose/shape'
 import { type PoseTemplate, SCAN_TEMPLATE } from '../pose/template'
+import { tilt } from '../sensors/tilt'
 
 // How fast the drawn ghost follows the person (0..1 per frame); lower is smoother.
 const FOLLOW = 0.3
@@ -25,12 +28,17 @@ export interface SessionSnapshot {
   scanProgress: number | null
   /** Whether a measured body shape is in use (vs average proportions). */
   hasShape: boolean
+  /** Phone roll in degrees for the level indicator; null without a motion sensor. */
+  roll: number | null
 }
 
 export interface SessionOptions {
   showSkeleton: boolean
   /** Do the pose on the other side. */
   flipPose: boolean
+  /** Alone (self) or someone else holding the phone (friend). */
+  mode: ShootingMode
+  facing: 'user' | 'environment'
 }
 
 /**
@@ -44,7 +52,7 @@ export interface SessionOptions {
 export class SessionEngine {
   readonly voice = new Voice()
   readonly profile = new BodyProfile()
-  options: SessionOptions = { showSkeleton: false, flipPose: false }
+  options: SessionOptions = { showSkeleton: false, flipPose: false, mode: 'self', facing: 'user' }
 
   onSnapshot: (s: SessionSnapshot) => void = () => {}
   /** Called when a photo should be taken now. */
@@ -54,7 +62,7 @@ export class SessionEngine {
   private capture: CaptureState = OFF
   private autoEnabled = true
   private matched = false
-  private hints = new HintStabilizer()
+  private hints = new HintStabilizer<Cue>()
   private lastCountdown: number | null = null
   private lastSnapshotAt = 0
   private lastPhase: CapturePhase = 'off'
@@ -140,23 +148,55 @@ export class SessionEngine {
       return
     }
 
+    const { mode, facing } = this.options
     const template = this.template
     if (!template) {
-      this.emit(now, { message: keypoints ? 'Pick a pose below' : 'Step into the frame', score: null, matched: false })
+      // No pose guide: still coach the camera angle and framing.
+      const comp = composition({
+        user,
+        anchor: user ? anchorFor(user, 'torso') : null,
+        shot: null,
+        width,
+        height,
+        tilt: tilt.current,
+        facing,
+      })
+      const cue = this.hints.update(comp.cue, now)
+      const message = cue ? cueText(cue, mode) : keypoints ? 'Pick a pose below' : 'Step into the frame'
+      this.voice.say(cue ? cueSpeech(cue, mode) : null, now)
+      this.emit(now, { message, score: null, matched: false })
       return
     }
 
     const t = this.options.flipPose ? flipTemplate(template) : template
     const result = this.ghost(t, user, ctx)
+    const comp = composition({
+      user,
+      anchor: result.anchor,
+      shot: t.shot,
+      width,
+      height,
+      tilt: tilt.current,
+      facing,
+    })
+
+    // Priority: get the person in frame, then fix a badly tilted phone, then the pose itself,
+    // then softer photography tips.
+    let next: Cue | null
+    if (result.cue?.key.startsWith('frame:')) next = result.cue
+    else if (comp.urgent) next = comp.cue
+    else next = result.cue ?? comp.cue
 
     const stepped = step(this.capture, now, this.matched)
     this.capture = stepped.state
     if (stepped.shoot) this.onShoot()
 
     this.speakPhase(now)
-    const hint = this.hints.update(result.hint, now)
-    const message = this.messageFor(hint, now)
-    if (this.capture.phase === 'aiming' || this.capture.phase === 'off') this.voice.say(message, now)
+    const cue = this.hints.update(next, now)
+    const message = this.messageFor(cue ? cueText(cue, mode) : null, now)
+    if (this.capture.phase === 'aiming' || this.capture.phase === 'off') {
+      this.voice.say(cue ? cueSpeech(cue, mode) : message, now)
+    }
 
     this.emit(now, { message, score: result.placement ? result.score : null, matched: this.matched })
   }
@@ -213,12 +253,15 @@ export class SessionEngine {
       return
     }
 
-    const hint = this.hints.update(result.hint, now)
+    const { mode } = this.options
+    const cue = this.hints.update(result.cue, now)
     const pct = Math.round(this.scanner.progress * 100)
     const message = this.matched
       ? `Hold still… ${pct}%`
-      : (hint ?? 'Stand straight, arms slightly away from your body')
-    if (!this.matched) this.voice.say(message, now)
+      : cue
+        ? cueText(cue, mode)
+        : 'Stand straight, arms slightly away from your body'
+    if (!this.matched) this.voice.say(cue ? cueSpeech(cue, mode) : message, now)
     this.emit(now, { message, score: null, matched: this.matched })
   }
 
@@ -264,6 +307,7 @@ export class SessionEngine {
       countdown: secondsLeft(this.capture, now),
       scanProgress: this.scanning ? this.scanner.progress : null,
       hasShape: this.shape !== null,
+      roll: tilt.current?.roll ?? null,
     })
   }
 }

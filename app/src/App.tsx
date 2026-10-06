@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { CameraView } from './components/CameraView'
+import { tilt } from './sensors/tilt'
 import { PoseLibrary } from './components/PoseLibrary'
 
 type Screen = 'home' | 'camera' | 'library'
@@ -18,7 +19,11 @@ function App() {
       <p>Pose guidance for better photos and selfies.</p>
       <p className="note">Video is processed on your device and never uploaded.</p>
       <div className="actions">
-        <button type="button" className="primary" onClick={() => setScreen('camera')}>
+        <button type="button" className="primary" onClick={() => {
+            // iOS only allows motion sensors after a prompt triggered by a tap.
+            void tilt.requestPermission()
+            setScreen('camera')
+          }}>
           Start camera
         </button>
         <button type="button" className="secondary" onClick={() => setScreen('library')}>
