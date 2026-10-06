@@ -9,11 +9,11 @@ export interface PoseDetector {
   variant: ModelVariant
 }
 
-const ASSET_BASE = `${import.meta.env.BASE_URL}mediapipe`
+export const ASSET_BASE = `${import.meta.env.BASE_URL}mediapipe`
 
 let filesetPromise: ReturnType<typeof FilesetResolver.forVisionTasks> | null = null
 
-function loadFileset() {
+export function loadFileset() {
   filesetPromise ??= FilesetResolver.forVisionTasks(`${ASSET_BASE}/wasm`)
   return filesetPromise
 }

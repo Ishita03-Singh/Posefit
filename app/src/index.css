@@ -761,3 +761,72 @@ button.link.danger {
   color: var(--bg);
   border: none;
 }
+
+/* Best Shots */
+
+.burst {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.burst + .burst {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.burst-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.review-photo {
+  position: relative;
+}
+
+.review-grid li.best img {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.best-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--accent);
+  color: #0b2614;
+}
+
+.shot-notes {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.shot-notes li {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.shot-notes li.good {
+  color: #2e9e57;
+  border-color: rgba(46, 158, 87, 0.4);
+}
+
+.shot-notes li.warn {
+  color: #c77b12;
+  border-color: rgba(199, 123, 18, 0.4);
+}

@@ -29,8 +29,9 @@ export interface CaptureConfig {
 export const DEFAULT_CAPTURE: CaptureConfig = {
   holdMs: 700,
   countdownMs: 3000,
-  burst: 3,
-  burstIntervalMs: 250,
+  // Five frames give Best Shots enough to choose from (blinks, motion blur).
+  burst: 5,
+  burstIntervalMs: 200,
 }
 
 export interface StepResult {

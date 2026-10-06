@@ -1,5 +1,5 @@
-/** Grabs the current video frame at full camera resolution as a JPEG. */
-export function grabFrame(video: HTMLVideoElement, mirrored: boolean): Promise<Blob> {
+/** Grabs the current video frame at full camera resolution: the JPEG plus the canvas it came from. */
+export function grabFrame(video: HTMLVideoElement, mirrored: boolean): Promise<{ blob: Blob; canvas: HTMLCanvasElement }> {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
@@ -12,6 +12,6 @@ export function grabFrame(video: HTMLVideoElement, mirrored: boolean): Promise<B
   }
   ctx.drawImage(video, 0, 0)
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encoding failed'))), 'image/jpeg', 0.92),
+    canvas.toBlob((blob) => (blob ? resolve({ blob, canvas }) : reject(new Error('encoding failed'))), 'image/jpeg', 0.92),
   )
 }

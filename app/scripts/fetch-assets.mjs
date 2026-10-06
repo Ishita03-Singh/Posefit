@@ -17,6 +17,9 @@ const MODELS = {
     'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
   'pose_landmarker_full.task':
     'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task',
+  // Blink / smile scores for Best Shots.
+  'face_landmarker.task':
+    'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',
 }
 
 const modelDir = join(publicDir, 'models')

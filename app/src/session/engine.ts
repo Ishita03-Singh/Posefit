@@ -32,6 +32,15 @@ export interface SessionSnapshot {
   roll: number | null
 }
 
+/** What the engine knew when it fired the shutter, for Best Shots. */
+export interface ShotInfo {
+  /** Shots from the same auto-capture burst share an id. */
+  burstId: string
+  poseScore: number | null
+  /** Body points in raw frame pixels. */
+  points: BodyPoints | null
+}
+
 export interface SessionOptions {
   showSkeleton: boolean
   /** Do the pose on the other side. */
@@ -56,7 +65,7 @@ export class SessionEngine {
 
   onSnapshot: (s: SessionSnapshot) => void = () => {}
   /** Called when a photo should be taken now. */
-  onShoot: () => void = () => {}
+  onShoot: (shot: ShotInfo) => void = () => {}
 
   private template: PoseTemplate | null = null
   private capture: CaptureState = OFF
@@ -67,6 +76,10 @@ export class SessionEngine {
   private lastSnapshotAt = 0
   private lastPhase: CapturePhase = 'off'
   private drawAnchor: Anchor | null = null
+  private burstCount = 0
+  private readonly sessionId = `auto-${Date.now().toString(36)}`
+  private lastPoints: BodyPoints | null = null
+  private lastScore: number | null = null
 
   private shape: BodyShape | null = loadShape()
   private scanning = false
@@ -101,7 +114,7 @@ export class SessionEngine {
     if (!enabled) this.voice.stop()
   }
 
-  setHandlers(handlers: { onShoot: () => void; onSnapshot: (s: SessionSnapshot) => void }): void {
+  setHandlers(handlers: { onShoot: (shot: ShotInfo) => void; onSnapshot: (s: SessionSnapshot) => void }): void {
     this.onShoot = handlers.onShoot
     this.onSnapshot = handlers.onSnapshot
   }
@@ -118,6 +131,11 @@ export class SessionEngine {
 
   get phase(): CapturePhase {
     return this.capture.phase
+  }
+
+  /** Shot details for the manual shutter (each manual photo is its own "burst"). */
+  manualShot(): ShotInfo {
+    return { burstId: `manual-${Date.now().toString(36)}`, poseScore: this.lastScore, points: this.lastPoints }
   }
 
   startScan(): void {
@@ -141,6 +159,8 @@ export class SessionEngine {
 
     const user = keypoints ? toPixels(keypoints, width, height) : null
     if (user) this.profile.update(user)
+    this.lastPoints = user
+    this.lastScore = null
     if (keypoints && this.options.showSkeleton) drawSkeleton(ctx, keypoints)
 
     if (this.scanning) {
@@ -170,6 +190,7 @@ export class SessionEngine {
 
     const t = this.options.flipPose ? flipTemplate(template) : template
     const result = this.ghost(t, user, ctx)
+    if (result.placement) this.lastScore = result.score
     const comp = composition({
       user,
       anchor: result.anchor,
@@ -187,9 +208,18 @@ export class SessionEngine {
     else if (comp.urgent) next = comp.cue
     else next = result.cue ?? comp.cue
 
+    const before: CapturePhase = this.capture.phase
     const stepped = step(this.capture, now, this.matched)
     this.capture = stepped.state
-    if (stepped.shoot) this.onShoot()
+    const after: CapturePhase = stepped.state.phase
+    if (before === 'countdown' && after === 'shooting') this.burstCount++
+    if (stepped.shoot) {
+      this.onShoot({
+        burstId: `${this.sessionId}-${this.burstCount}`,
+        poseScore: result.placement ? result.score : null,
+        points: user,
+      })
+    }
 
     this.speakPhase(now)
     const cue = this.hints.update(next, now)

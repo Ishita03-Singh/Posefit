@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type Facing, useCamera } from '../camera/useCamera'
+import { analyzeShot } from '../bestshot/analyze'
 import { grabFrame } from '../capture/photo'
 import type { ShootingMode } from '../coach/cues'
 import { loadShape } from '../pose/shape'
@@ -8,7 +9,7 @@ import { type PoseTemplate, TEMPLATES } from '../pose/template'
 import { useAllTemplates } from '../pose/templateStore'
 import { recommend } from '../recommend/recommend'
 import { tilt } from '../sensors/tilt'
-import { SessionEngine, type SessionSnapshot } from '../session/engine'
+import { SessionEngine, type SessionSnapshot, type ShotInfo } from '../session/engine'
 import type { ModelVariant } from '../vision/poseDetector'
 import { usePoseDetector } from '../vision/usePoseDetector'
 import { type FrameHandler, usePoseTracking } from '../vision/usePoseTracking'
@@ -90,25 +91,32 @@ export function CameraView({ onExit }: Props) {
     void detector?.landmarker.setOptions({ outputSegmentationMasks: scanning })
   }, [detector, scanning])
 
-  const takePhoto = useCallback(async () => {
-    const video = videoRef.current
-    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return
-    setFlash(true)
-    setTimeout(() => setFlash(false), 120)
-    const blob = await grabFrame(video, mirrored)
-    const id = new Date().toISOString().replace(/[:.]/g, '-')
-    const photo: Photo = { id, url: URL.createObjectURL(blob), blob }
-    setPhotos((prev) => {
-      const next = [...prev, photo]
-      next.slice(0, Math.max(0, next.length - MAX_PHOTOS)).forEach((p) => URL.revokeObjectURL(p.url))
-      return next.slice(-MAX_PHOTOS)
-    })
-  }, [mirrored])
+  const takePhoto = useCallback(
+    async (shot: ShotInfo) => {
+      const video = videoRef.current
+      if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return
+      setFlash(true)
+      setTimeout(() => setFlash(false), 120)
+      const { blob, canvas } = await grabFrame(video, mirrored)
+      const id = new Date().toISOString().replace(/[:.]/g, '-')
+      const photo: Photo = { id, url: URL.createObjectURL(blob), blob, burstId: shot.burstId }
+      setPhotos((prev) => {
+        const next = [...prev, photo]
+        next.slice(0, Math.max(0, next.length - MAX_PHOTOS)).forEach((p) => URL.revokeObjectURL(p.url))
+        return next.slice(-MAX_PHOTOS)
+      })
+      // Best Shots: measure the photo in the background, off the camera loop.
+      analyzeShot(canvas, { poseScore: shot.poseScore, points: shot.points, mirrored })
+        .then((signals) => setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, signals } : p))))
+        .catch((err: unknown) => console.warn('[bestshot] analysis failed', err))
+    },
+    [mirrored],
+  )
 
   useEffect(() => {
     let lastPhase = engine.phase
     engine.setHandlers({
-      onShoot: () => void takePhoto(),
+      onShoot: (shot) => void takePhoto(shot),
       onSnapshot: (s) => {
         setSnapshot(s)
         if (s.phase === 'done' && lastPhase !== 'done') setReviewOpen(true)
@@ -270,7 +278,7 @@ export function CameraView({ onExit }: Props) {
           >
             {photos.length > 0 ? <img src={photos[photos.length - 1].url} alt="" /> : <span>0</span>}
           </button>
-          <button type="button" className="shutter" onClick={() => void takePhoto()} aria-label="Take photo" />
+          <button type="button" className="shutter" onClick={() => void takePhoto(engine.manualShot())} aria-label="Take photo" />
           <button type="button" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}>
             Flip
           </button>
@@ -296,6 +304,11 @@ export function CameraView({ onExit }: Props) {
           onClear={() => {
             photos.forEach((p) => URL.revokeObjectURL(p.url))
             setPhotos([])
+          }}
+          onRemove={(ids) => {
+            const drop = new Set(ids)
+            photos.filter((p) => drop.has(p.id)).forEach((p) => URL.revokeObjectURL(p.url))
+            setPhotos((prev) => prev.filter((p) => !drop.has(p.id)))
           }}
         />
       )}

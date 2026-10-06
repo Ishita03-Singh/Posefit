@@ -37,7 +37,7 @@ The dev server uses a self-signed certificate so the camera works on phones; acc
 | 3 | Ghost overlay fitted to your proportions, angle-based match score, coaching, voice cues, auto-capture state machine, ring light | Geometry, state machines, real-time loops |
 | 3b | Framing, distance and tilt coaching; "friend is shooting" mode | Device sensors, composition rules |
 | 4 | Body analysis, rule-based recommendations, in-browser "use your own reference photo" | Feature engineering, baseline recommenders |
-| 5 | On-device Best Shots (rank burst photos), then semantic pose search | Image quality metrics, embeddings, CLIP, vector DB (pgvector) |
+| 5 | On-device Best Shots (rank burst photos: pose, eyes open, smile, sharpness, framing, exposure), then semantic pose search | Image quality metrics, embeddings, CLIP, vector DB (pgvector) |
 | 6 | RAG photography coach | Chunking, retrieval, grounded prompting |
 | 7 | Vision LLM scene understanding | Multimodal LLMs, provider abstraction |
 | 8 | Photoshoot director agent | Tool calling, agent loops, planning |
