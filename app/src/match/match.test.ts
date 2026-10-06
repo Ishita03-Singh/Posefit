@@ -6,7 +6,7 @@ import type { LandmarkName } from '../pose/landmarks'
 import { BodyProfile } from '../pose/profile'
 import { TEMPLATES } from '../pose/template'
 import { flipTemplate, placeGhost, retarget } from './fit'
-import { matchPose } from './match'
+import { matchPose, SCORED_BONES } from './match'
 
 const W = 720
 const H = 1280
@@ -25,26 +25,62 @@ function transform(points: BodyPoints, f: (p: Vec) => Vec): BodyPoints {
   return out
 }
 
+/** Rotates `joint` around `pivot` by `degrees`. */
+function rotateJoint(points: BodyPoints, pivot: LandmarkName, joint: LandmarkName, degrees: number) {
+  const c = points[pivot]!
+  const p = points[joint]!
+  const a = (degrees * Math.PI) / 180
+  const v: Vec = [p[0] - c[0], p[1] - c[1]]
+  points[joint] = [c[0] + v[0] * Math.cos(a) - v[1] * Math.sin(a), c[1] + v[0] * Math.sin(a) + v[1] * Math.cos(a)]
+}
+
 describe('matchPose', () => {
-  it('scores a perfect match at 100 with no hint', () => {
+  it('scores a perfect match at 100, ready, with no hint', () => {
     const { ghost, user } = setup()
     const r = matchPose(user, ghost, template)
     expect(r.score).toBeCloseTo(100)
     expect(r.placement!.ratio).toBeCloseTo(1)
     expect(r.hint).toBeNull()
+    expect(r.ready).toBe(true)
   })
 
-  it('asks to step closer when the person is small in frame', () => {
+  it('returns the person\'s own anchor so the ghost can be drawn on them', () => {
+    const { ghost, user } = setup()
+    const r = matchPose(user, ghost, template)
+    expect(r.anchor!.unit).toBeCloseTo(ghost.anchor.unit)
+    expect(r.anchor!.origin[0]).toBeCloseTo(ghost.anchor.origin[0])
+  })
+
+  it('tolerates moderate distance differences (the ghost follows the person)', () => {
     const { ghost, user } = setup()
     const o = ghost.anchor.origin
-    const far = transform(user, (p) => [o[0] + (p[0] - o[0]) * 0.7, o[1] + (p[1] - o[1]) * 0.7])
-    expect(matchPose(far, ghost, template).hint).toBe('Step closer')
+    const nearer = transform(user, (p) => [o[0] + (p[0] - o[0]) * 0.8, o[1] + (p[1] - o[1]) * 0.8])
+    expect(matchPose(nearer, ghost, template).ready).toBe(true)
+  })
+
+  it('asks to step closer when the person is very small in frame', () => {
+    const { ghost, user } = setup()
+    const o = ghost.anchor.origin
+    const far = transform(user, (p) => [o[0] + (p[0] - o[0]) * 0.5, o[1] + (p[1] - o[1]) * 0.5])
+    const r = matchPose(far, ghost, template)
+    expect(r.hint).toBe('Step closer')
+    expect(r.ready).toBe(false)
+  })
+
+  it('asks to step back when the pose would be cut off at the bottom', () => {
+    const { ghost, user } = setup()
+    const o = ghost.anchor.origin
+    // Slightly bigger (within size tolerance) and lower, so the feet leave the frame.
+    const close = transform(user, (p) => [o[0] + (p[0] - o[0]) * 1.25, o[1] + (p[1] - o[1]) * 1.25 + 0.06 * H])
+    const r = matchPose(close, ghost, template)
+    expect(r.hint).toBe('Step back')
+    expect(r.ready).toBe(false)
   })
 
   it("gives left/right directions from the person's point of view", () => {
     const { ghost, user } = setup()
     // +x in the raw frame is the person's own left, so they need to move to their right.
-    const shifted = transform(user, (p) => [p[0] + ghost.anchor.unit * 0.6, p[1]])
+    const shifted = transform(user, (p) => [p[0] + ghost.anchor.unit * 0.9, p[1]])
     expect(matchPose(shifted, ghost, template).hint).toBe('Move to your right')
   })
 
@@ -54,7 +90,7 @@ describe('matchPose', () => {
     expect(matchPose(shifted, ghost, template).score).toBeCloseTo(100)
   })
 
-  it('names the limb to fix', () => {
+  it('names the limb to fix and is not ready', () => {
     const { ghost, user } = setup()
     // Left arm hanging straight down instead of hand on hip.
     const elbow = user.left_elbow!
@@ -63,19 +99,41 @@ describe('matchPose', () => {
     const r = matchPose(user, ghost, template)
     expect(r.score).toBeLessThan(50)
     expect(r.hint).toBe('Bring your left hand in')
+    expect(r.ready).toBe(false)
   })
 
   it('reports a missing key limb', () => {
     const { ghost, user } = setup()
     delete user.left_wrist
-    expect(matchPose(user, ghost, template).hint).toBe("I can't see your left hand")
+    const r = matchPose(user, ghost, template)
+    expect(r.hint).toBe("I can't see your left hand")
+    expect(r.ready).toBe(false)
+  })
+})
+
+describe('ready means "what you see is green"', () => {
+  it('is ready when key limbs are green even if a non-key limb is amber', () => {
+    const { ghost, user } = setup()
+    rotateJoint(user, 'right_elbow', 'right_wrist', 25) // right arm is not a key joint here
+    const r = matchPose(user, ghost, template)
+    const i = SCORED_BONES.findIndex((b) => b.to === 'right_wrist')
+    expect(r.boneScores[i]).toBeLessThan(0.8)
+    expect(r.boneScores[i]).toBeGreaterThanOrEqual(0.5)
+    expect(r.ready).toBe(true)
   })
 
-  it('asks for the whole body on full-body poses', () => {
+  it('is not ready when any limb is red', () => {
     const { ghost, user } = setup()
-    delete user.left_ankle
-    delete user.right_ankle
-    expect(matchPose(user, ghost, template).hint).toBe('Step back so I can see your feet')
+    rotateJoint(user, 'right_elbow', 'right_wrist', 60)
+    expect(matchPose(user, ghost, template).ready).toBe(false)
+  })
+
+  it('a small error on a key limb keeps the score >= 80', () => {
+    const { ghost, user } = setup()
+    rotateJoint(user, 'left_elbow', 'left_wrist', 12)
+    const r = matchPose(user, ghost, template)
+    expect(r.score).toBeGreaterThanOrEqual(80)
+    expect(r.ready).toBe(true)
   })
 })
 
@@ -89,17 +147,12 @@ describe('fit', () => {
   it('retargeting keeps joint directions and torso, scales limbs', () => {
     const profile = new BodyProfile()
     // A person with 20% longer forearms than average.
-    const ls: Vec = [100, 100]
-    const rs: Vec = [20, 100]
-    const lh: Vec = [80, 200]
-    const rh: Vec = [40, 200]
-    const le: Vec = [100, 162]
     profile.update({
-      left_shoulder: ls,
-      right_shoulder: rs,
-      left_hip: lh,
-      right_hip: rh,
-      left_elbow: le,
+      left_shoulder: [100, 100],
+      right_shoulder: [20, 100],
+      left_hip: [80, 200],
+      right_hip: [40, 200],
+      left_elbow: [100, 162],
       left_wrist: [100, 162 + 0.55 * 1.2 * 100],
     })
     expect(profile.factor('forearm')).toBeCloseTo(1.2, 1)
@@ -122,18 +175,5 @@ describe('fit', () => {
       expect(y).toBeGreaterThan(0)
       expect(y).toBeLessThan(H)
     }
-  })
-})
-
-describe('score sensitivity', () => {
-  it('a small error on a key limb still allows capture (>= 80)', () => {
-    const { ghost, user } = setup()
-    // Rotate the left forearm by 12 degrees around the elbow.
-    const e = user.left_elbow!
-    const w = user.left_wrist!
-    const a = (12 * Math.PI) / 180
-    const v: Vec = [w[0] - e[0], w[1] - e[1]]
-    user.left_wrist = [e[0] + v[0] * Math.cos(a) - v[1] * Math.sin(a), e[1] + v[0] * Math.sin(a) + v[1] * Math.cos(a)]
-    expect(matchPose(user, ghost, template).score).toBeGreaterThanOrEqual(80)
   })
 })

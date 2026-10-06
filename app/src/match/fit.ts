@@ -9,6 +9,18 @@ export interface Ghost {
   points: BodyPoints
   /** Where the template's origin sits and how many pixels one template unit spans. */
   anchor: Anchor
+  /** The (retargeted) template keypoints in template units, for re-anchoring on a person. */
+  keypoints: PoseTemplate['keypoints']
+  frame: { width: number; height: number }
+}
+
+/** Places template-unit keypoints at an anchor (e.g. on the person's own torso). */
+export function anchorPoints(keypoints: PoseTemplate['keypoints'], anchor: Anchor): BodyPoints {
+  const out: BodyPoints = {}
+  for (const [name, p] of Object.entries(keypoints) as [LandmarkName, Vec][]) {
+    out[name] = [anchor.origin[0] + p[0] * anchor.unit, anchor.origin[1] + p[1] * anchor.unit]
+  }
+  return out
 }
 
 /** Swaps the template's left and right (do the pose on the other side). */
@@ -66,7 +78,7 @@ const LAYOUT: Record<Shot, { height: number; top: number }> = {
 }
 
 /** Room above the nose for the top of the head, in template units. */
-const HEAD_ROOM = 0.3
+export const HEAD_ROOM = 0.3
 
 /** Places a (retargeted) template in the frame with good composition. */
 export function placeGhost(
@@ -91,5 +103,5 @@ export function placeGhost(
 
   const points: BodyPoints = {}
   for (const [name, p] of Object.entries(keypoints) as [LandmarkName, Vec][]) points[name] = toPx(p)
-  return { points, anchor: { origin: toPx([0, 0]), unit: s } }
+  return { points, anchor: { origin: toPx([0, 0]), unit: s }, keypoints, frame: { width, height } }
 }

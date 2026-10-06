@@ -1,16 +1,16 @@
 import { ARMED, type CapturePhase, type CaptureState, OFF, secondsLeft, step } from '../capture/autoCapture'
 import { HintStabilizer, Voice } from '../coach/coach'
-import { flipTemplate, placeGhost, retarget } from '../match/fit'
-import { LOOSE, matchPose, placementWithin, TIGHT } from '../match/match'
-import { drawGhost } from '../overlay/drawGhost'
+import { anchorPoints, flipTemplate, placeGhost, retarget } from '../match/fit'
+import { matchPose } from '../match/match'
+import { drawBody } from '../overlay/drawBody'
 import { drawSkeleton } from '../overlay/drawSkeleton'
-import { toPixels } from '../pose/body'
+import { type Anchor, toPixels } from '../pose/body'
 import type { Keypoint } from '../pose/landmarks'
 import { BodyProfile } from '../pose/profile'
 import type { PoseTemplate } from '../pose/template'
 
-const ENTER_SCORE = 80
-const STAY_SCORE = 70
+// How fast the drawn ghost follows the person (0..1 per frame); lower is smoother.
+const FOLLOW = 0.3
 const UI_INTERVAL_MS = 100
 
 export interface SessionSnapshot {
@@ -50,6 +50,7 @@ export class SessionEngine {
   private lastCountdown: number | null = null
   private lastSnapshotAt = 0
   private lastPhase: CapturePhase = 'off'
+  private drawAnchor: Anchor | null = null
 
   setTemplate(template: PoseTemplate | null): void {
     this.template = template
@@ -101,15 +102,28 @@ export class SessionEngine {
     }
 
     const t = this.options.flipPose ? flipTemplate(template) : template
-    const ghost = placeGhost(t, retarget(t, this.profile), width, height)
-    const result = matchPose(user, ghost, t)
-    drawGhost(ctx, ghost, result.placement ? result.boneScores : null, t.key_joints)
+    const ideal = placeGhost(t, retarget(t, this.profile), width, height)
+    const result = matchPose(user, ideal, t)
+
+    // The ghost is drawn on the person (their torso position and size), smoothed; with nobody
+    // in view it rests at the ideal framing so they know where to stand.
+    const target = result.anchor ?? ideal.anchor
+    const a = this.drawAnchor
+    this.drawAnchor = a
+      ? {
+          origin: [a.origin[0] + (target.origin[0] - a.origin[0]) * FOLLOW, a.origin[1] + (target.origin[1] - a.origin[1]) * FOLLOW],
+          unit: a.unit + (target.unit - a.unit) * FOLLOW,
+        }
+      : target
 
     // Hysteresis: easier to stay matched than to become matched, so the state doesn't flicker.
+    this.matched = this.matched ? result.holding : result.ready
     const p = result.placement
-    this.matched = this.matched
-      ? p !== null && placementWithin(p, LOOSE) && result.score >= STAY_SCORE
-      : p !== null && placementWithin(p, TIGHT) && result.score >= ENTER_SCORE && result.hint === null
+
+    drawBody(ctx, anchorPoints(ideal.keypoints, this.drawAnchor), this.drawAnchor.unit, {
+      boneScores: p ? result.boneScores : null,
+      matched: this.matched,
+    })
 
     const stepped = step(this.capture, now, this.matched)
     this.capture = stepped.state
