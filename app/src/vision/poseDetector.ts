@@ -18,8 +18,14 @@ function loadFileset() {
   return filesetPromise
 }
 
-/** Creates a single-person video-mode pose landmarker, preferring the GPU and falling back to CPU. */
-export async function createPoseDetector(variant: ModelVariant): Promise<PoseDetector> {
+/**
+ * Creates a single-person pose landmarker, preferring the GPU and falling back to CPU.
+ * VIDEO mode tracks across frames (camera); IMAGE mode handles independent stills (photos).
+ */
+export async function createPoseDetector(
+  variant: ModelVariant,
+  runningMode: 'VIDEO' | 'IMAGE' = 'VIDEO',
+): Promise<PoseDetector> {
   const fileset = await loadFileset()
   const modelAssetPath = `${ASSET_BASE}/models/pose_landmarker_${variant}.task`
 
@@ -27,7 +33,7 @@ export async function createPoseDetector(variant: ModelVariant): Promise<PoseDet
     try {
       const landmarker = await PoseLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath, delegate },
-        runningMode: 'VIDEO',
+        runningMode,
         numPoses: 1,
         minPoseDetectionConfidence: 0.5,
         minPosePresenceConfidence: 0.5,

@@ -1,14 +1,18 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type Facing, useCamera } from '../camera/useCamera'
 import { grabFrame } from '../capture/photo'
 import type { ShootingMode } from '../coach/cues'
+import { loadShape } from '../pose/shape'
 import { type PoseTemplate, TEMPLATES } from '../pose/template'
+import { useAllTemplates } from '../pose/templateStore'
+import { recommend } from '../recommend/recommend'
 import { tilt } from '../sensors/tilt'
 import { SessionEngine, type SessionSnapshot } from '../session/engine'
 import type { ModelVariant } from '../vision/poseDetector'
 import { usePoseDetector } from '../vision/usePoseDetector'
 import { type FrameHandler, usePoseTracking } from '../vision/usePoseTracking'
+import { ImportPose } from './ImportPose'
 import { PosePicker } from './PosePicker'
 import { type Photo, ReviewSheet } from './ReviewSheet'
 
@@ -44,6 +48,7 @@ export function CameraView({ onExit }: Props) {
   const [ringLight, setRingLight] = useState(false)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [posesOpen, setPosesOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [friendMode, setFriendMode] = useState(true)
   const [snapshot, setSnapshot] = useState<SessionSnapshot>(INITIAL_SNAPSHOT)
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -137,6 +142,17 @@ export function CameraView({ onExit }: Props) {
   else if (detectorState.status === 'loading') message = 'Loading pose model…'
   else message = snapshot.message
 
+  // Poses ordered for this person (body scan) and camera; top suggestions get a badge.
+  const templates = useAllTemplates()
+  const hasShape = snapshot.hasShape
+  const shape = useMemo(() => (hasShape ? loadShape() : null), [hasShape])
+  const recs = useMemo(
+    () => recommend(templates, shape, { preferShot: mirrored ? undefined : 'full_body' }),
+    [templates, shape, mirrored],
+  )
+  const ranked = useMemo(() => recs.map((r) => r.template), [recs])
+  const suggested = useMemo(() => new Set(shape ? recs.slice(0, 3).map((r) => r.template.id) : []), [recs, shape])
+
   // Keep the frame clear while the person holds the pose.
   const capturing =
     scanning || snapshot.phase === 'holding' || snapshot.phase === 'countdown' || snapshot.phase === 'shooting'
@@ -199,6 +215,9 @@ export function CameraView({ onExit }: Props) {
         )}
         {posesOpen ? (
           <PosePicker
+            templates={ranked}
+            suggested={suggested}
+            onAddPhoto={() => setImportOpen(true)}
             selectedId={template?.id ?? null}
             onSelect={(t) => {
               setTemplate(t)
@@ -257,6 +276,17 @@ export function CameraView({ onExit }: Props) {
           </button>
         </div>
       </div>
+
+      {importOpen && (
+        <ImportPose
+          onClose={() => setImportOpen(false)}
+          onSaved={(t) => {
+            setTemplate(t)
+            setImportOpen(false)
+            setPosesOpen(false)
+          }}
+        />
+      )}
 
       {reviewOpen && (
         <ReviewSheet

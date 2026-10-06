@@ -1,15 +1,24 @@
-import { type PoseTemplate, TEMPLATES } from '../pose/template'
+import type { PoseTemplate } from '../pose/template'
 import { TemplateFigure } from './TemplateFigure'
 
 interface Props {
+  /** Poses in display order (best suggestions first). */
+  templates: PoseTemplate[]
+  /** Ids to mark as suggested for this person. */
+  suggested: Set<string>
   selectedId: string | null
   onSelect: (template: PoseTemplate | null) => void
+  onAddPhoto: () => void
 }
 
 /** Horizontal strip of poses to pick from while the camera is running. */
-export function PosePicker({ selectedId, onSelect }: Props) {
+export function PosePicker({ templates, suggested, selectedId, onSelect, onAddPhoto }: Props) {
   return (
     <div className="pose-strip" role="listbox" aria-label="Pose">
+      <button type="button" className="pose-chip" onClick={onAddPhoto}>
+        <span className="pose-chip-none">+ Photo</span>
+        <span className="pose-chip-name">From your photo</span>
+      </button>
       <button
         type="button"
         role="option"
@@ -20,7 +29,7 @@ export function PosePicker({ selectedId, onSelect }: Props) {
         <span className="pose-chip-none">Free</span>
         <span className="pose-chip-name">No guide</span>
       </button>
-      {TEMPLATES.map((t) => (
+      {templates.map((t) => (
         <button
           key={t.id}
           type="button"
@@ -29,6 +38,7 @@ export function PosePicker({ selectedId, onSelect }: Props) {
           className={`pose-chip${selectedId === t.id ? ' active' : ''}`}
           onClick={() => onSelect(t)}
         >
+          {suggested.has(t.id) && <span className="for-you">For you</span>}
           <TemplateFigure template={t} />
           <span className="pose-chip-name">{t.name}</span>
         </button>
