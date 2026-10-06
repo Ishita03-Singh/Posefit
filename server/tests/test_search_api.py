@@ -53,3 +53,12 @@ def test_reports_database_unavailable() -> None:
         assert TestClient(app).get("/api/search", params={"q": "x"}).status_code == 503
     finally:
         app.dependency_overrides.clear()
+
+
+def test_reports_database_not_configured(monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "database_url", None)
+    r = TestClient(app).get("/api/search", params={"q": "x"})
+    assert r.status_code == 503
+    assert "not configured" in r.json()["detail"]

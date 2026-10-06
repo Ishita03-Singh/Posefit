@@ -1,18 +1,18 @@
-# Local development services. Start with: docker compose up -d db
+# Local development services. Credentials come from .env (copy .env.example), never this file.
+# Start with: docker compose up -d db
 services:
   db:
     image: pgvector/pgvector:pg17
     environment:
-      # Dev-only credentials; the database is only exposed on this machine.
-      POSTGRES_USER: posefit
-      POSTGRES_PASSWORD: REDACTED
-      POSTGRES_DB: posefit
+      POSTGRES_USER: ${POSTGRES_USER:-posefit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:-posefit}
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5433:5432" # this machine only
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U posefit"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       retries: 10
 

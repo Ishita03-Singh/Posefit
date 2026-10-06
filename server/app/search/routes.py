@@ -17,13 +17,15 @@ Shot = Literal["full_body", "half_body", "selfie"]
 
 
 @lru_cache
-def _service() -> SearchService:
-    return SearchService(PgVectorIndex(settings.database_url), FastEmbedder())
+def _service(database_url: str) -> SearchService:
+    return SearchService(PgVectorIndex(database_url), FastEmbedder())
 
 
 def get_service() -> SearchService:
+    if not settings.database_url:
+        raise HTTPException(503, "Search database not configured (set POSEFIT_DATABASE_URL)")
     try:
-        return _service()
+        return _service(settings.database_url)
     except Exception as err:  # database not running / not reachable
         raise HTTPException(503, "Search database unavailable") from err
 

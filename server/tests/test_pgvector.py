@@ -11,6 +11,8 @@ from tests.conftest import FakeEmbedder
 def _db_available() -> bool:
     import psycopg
 
+    if not settings.database_url:
+        return False
     try:
         with psycopg.connect(settings.database_url, connect_timeout=2):
             return True
@@ -18,7 +20,9 @@ def _db_available() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _db_available(), reason="Postgres not running")
+pytestmark = pytest.mark.skipif(
+    not _db_available(), reason="Postgres not configured or not running"
+)
 
 
 def test_round_trip_through_pgvector(templates) -> None:

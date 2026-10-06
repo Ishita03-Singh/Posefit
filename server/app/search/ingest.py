@@ -15,6 +15,8 @@ from app.search.service import SearchService
 
 
 def main() -> None:
+    if not settings.database_url:
+        raise SystemExit("Set POSEFIT_DATABASE_URL (copy .env.example to .env in the repo root)")
     files = sorted(settings.templates_dir.glob("*.json"))
     templates = [json.loads(f.read_text(encoding="utf-8")) for f in files]
     service = SearchService(PgVectorIndex(settings.database_url), FastEmbedder())

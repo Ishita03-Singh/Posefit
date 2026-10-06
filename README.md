@@ -28,7 +28,9 @@ Tests: app 69 (Vitest), server 11 (pytest), tools 13 (pytest).
 # 1. Camera app: https://localhost:5173 (and https://<your-LAN-IP>:5173 from a phone on the same Wi-Fi)
 cd app && npm install && npm run dev
 
-# 2. Search database (pgvector in Docker; start Docker Desktop first)
+# 2. Search database (pgvector in Docker; start Docker Desktop first).
+#    Credentials live in a git-ignored .env: copy the example and set a password.
+cp .env.example .env
 docker compose up -d db
 
 # 3. API: http://localhost:8000, proxied by the app at /api
@@ -117,6 +119,7 @@ Please report anything that feels off (a hint pointing the wrong way, capture fi
 
 - Camera video is processed on the device and never uploaded.
 - Body scan and your poses are stored only in this browser (localStorage) as numbers, never images.
+- Credentials (database password, later API keys) live only in the git-ignored `.env`; `.env.example` documents the variables.
 - Photo search sends only a 20-number pose vector (and text searches send the query text) to the server.
 - Later AI phases (vision LLM) will send a frame only with explicit, per-use opt-in.
 
