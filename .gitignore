@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+*.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Reference photos used for template authoring (may contain people)
+tools/reference_photos/
