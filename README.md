@@ -34,9 +34,10 @@ The dev server uses a self-signed certificate so the camera works on phones; acc
 | 0 | Setup, repo, tooling | Monorepo, Vite, uv, FastAPI |
 | 1 | Live pose detection with skeleton overlay | MediaPipe, camera APIs, canvas rendering |
 | 2 | Pose template format, authoring tool, 20–30 starter poses | Data design, keypoint normalization |
-| 3 | Template fitting, ghost overlay, match score, auto-capture | Geometry (Procrustes), real-time loops |
-| 4 | Body analysis and rule-based recommendations | Feature engineering, baseline recommenders |
-| 5 | Semantic pose search (text and "find poses like this photo") | Embeddings, CLIP, vector DB (pgvector) |
+| 3 | Ghost overlay fitted to your proportions, angle-based match score, coaching, voice cues, auto-capture state machine, ring light | Geometry, state machines, real-time loops |
+| 3b | Framing, distance and tilt coaching; "friend is shooting" mode | Device sensors, composition rules |
+| 4 | Body analysis, rule-based recommendations, in-browser "use your own reference photo" | Feature engineering, baseline recommenders |
+| 5 | On-device Best Shots (rank burst photos), then semantic pose search | Image quality metrics, embeddings, CLIP, vector DB (pgvector) |
 | 6 | RAG photography coach | Chunking, retrieval, grounded prompting |
 | 7 | Vision LLM scene understanding | Multimodal LLMs, provider abstraction |
 | 8 | Photoshoot director agent | Tool calling, agent loops, planning |

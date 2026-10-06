@@ -1,6 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
-import { drawSkeleton } from '../overlay/drawSkeleton'
 import { type Keypoint, VISIBILITY_THRESHOLD } from '../pose/landmarks'
 import type { PoseDetector } from './poseDetector'
 
@@ -11,22 +10,29 @@ export interface TrackingStats {
   visiblePoints: number
 }
 
+/** Called once per processed video frame with a canvas sized to the video. */
+export type FrameHandler = (keypoints: Keypoint[] | null, ctx: CanvasRenderingContext2D, now: number) => void
+
 const STATS_INTERVAL_MS = 500
 
 const EMPTY_STATS: TrackingStats = { fps: 0, inferenceMs: 0, personDetected: false, visiblePoints: 0 }
 
 /**
- * Runs pose detection on every new video frame and draws the skeleton on `canvasRef`.
- * The latest keypoints are kept in a ref (not state) so later phases can read them per frame
- * without re-rendering React; only the HUD stats are pushed to state, twice a second.
+ * Runs pose detection on every new video frame and hands the result to `onFrame`, which owns
+ * drawing. Only HUD stats go through React state, twice a second.
  */
 export function usePoseTracking(
   videoRef: RefObject<HTMLVideoElement | null>,
   canvasRef: RefObject<HTMLCanvasElement | null>,
   detector: PoseDetector | null,
+  onFrame: FrameHandler,
 ) {
-  const poseRef = useRef<Keypoint[] | null>(null)
   const [stats, setStats] = useState<TrackingStats>(EMPTY_STATS)
+  // Read through a ref so a new handler doesn't restart the loop.
+  const onFrameRef = useRef(onFrame)
+  useEffect(() => {
+    onFrameRef.current = onFrame
+  }, [onFrame])
 
   useEffect(() => {
     const video = videoRef.current
@@ -62,10 +68,7 @@ export function usePoseTracking(
       frames++
 
       const keypoints = result.landmarks[0] ?? null
-      poseRef.current = keypoints
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      if (keypoints) drawSkeleton(ctx, keypoints)
+      onFrameRef.current(keypoints, ctx, timestamp)
 
       const now = performance.now()
       if (now - windowStart >= STATS_INTERVAL_MS) {
@@ -85,10 +88,9 @@ export function usePoseTracking(
     return () => {
       cancelAnimationFrame(raf)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      poseRef.current = null
       setStats(EMPTY_STATS)
     }
   }, [videoRef, canvasRef, detector])
 
-  return { poseRef, stats }
+  return { stats }
 }

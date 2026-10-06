@@ -1,61 +1,236 @@
-import { useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { type Facing, useCamera } from '../camera/useCamera'
+import { grabFrame } from '../capture/photo'
+import { type PoseTemplate, TEMPLATES } from '../pose/template'
+import { SessionEngine, type SessionSnapshot } from '../session/engine'
 import type { ModelVariant } from '../vision/poseDetector'
 import { usePoseDetector } from '../vision/usePoseDetector'
-import { usePoseTracking } from '../vision/usePoseTracking'
+import { type FrameHandler, usePoseTracking } from '../vision/usePoseTracking'
+import { PosePicker } from './PosePicker'
+import { type Photo, ReviewSheet } from './ReviewSheet'
 
 interface Props {
   onExit: () => void
 }
 
+const MAX_PHOTOS = 30
+const DEFAULT_TEMPLATE = TEMPLATES.find((t) => t.id === 'classic-hand-on-hip') ?? TEMPLATES[0] ?? null
+
+const INITIAL_SNAPSHOT: SessionSnapshot = {
+  message: 'Starting…',
+  score: null,
+  phase: 'off',
+  countdown: null,
+  matched: false,
+}
+
 export function CameraView({ onExit }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [engine] = useState(() => new SessionEngine())
+
   const [facing, setFacing] = useState<Facing>('user')
   const [variant, setVariant] = useState<ModelVariant>('lite')
+  const [template, setTemplate] = useState<PoseTemplate | null>(DEFAULT_TEMPLATE)
+  const [flipPose, setFlipPose] = useState(false)
+  const [auto, setAuto] = useState(true)
+  const [voiceOn, setVoiceOn] = useState(true)
+  const [ringLight, setRingLight] = useState(false)
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const [posesOpen, setPosesOpen] = useState(false)
+  const [snapshot, setSnapshot] = useState<SessionSnapshot>(INITIAL_SNAPSHOT)
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [flash, setFlash] = useState(false)
 
   const camera = useCamera(videoRef, true, facing)
   const detectorState = usePoseDetector(variant)
   const detector = detectorState.status === 'ready' ? detectorState.detector : null
-  const { stats } = usePoseTracking(videoRef, canvasRef, camera.status === 'ready' ? detector : null)
+  const mirrored = facing === 'user'
 
-  let status: string
-  if (camera.status === 'error') status = camera.message
-  else if (detectorState.status === 'error') status = `Model failed to load: ${detectorState.message}`
-  else if (camera.status !== 'ready') status = 'Starting camera…'
-  else if (detectorState.status === 'loading') status = 'Loading pose model…'
-  else if (!stats.personDetected) status = 'Step into the frame'
-  else status = `Tracking ${stats.visiblePoints}/33 points`
+  // --- engine wiring -------------------------------------------------------
+
+  useEffect(() => engine.setTemplate(template), [engine, template])
+  useEffect(() => engine.setAuto(auto), [engine, auto])
+  useEffect(() => engine.setOptions({ showSkeleton, flipPose }), [engine, showSkeleton, flipPose])
+  useEffect(() => engine.setVoice(voiceOn), [engine, voiceOn])
+
+  const takePhoto = useCallback(async () => {
+    const video = videoRef.current
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return
+    setFlash(true)
+    setTimeout(() => setFlash(false), 120)
+    const blob = await grabFrame(video, mirrored)
+    const id = new Date().toISOString().replace(/[:.]/g, '-')
+    const photo: Photo = { id, url: URL.createObjectURL(blob), blob }
+    setPhotos((prev) => {
+      const next = [...prev, photo]
+      next.slice(0, Math.max(0, next.length - MAX_PHOTOS)).forEach((p) => URL.revokeObjectURL(p.url))
+      return next.slice(-MAX_PHOTOS)
+    })
+  }, [mirrored])
+
+  useEffect(() => {
+    let lastPhase = engine.phase
+    engine.setHandlers({
+      onShoot: () => void takePhoto(),
+      onSnapshot: (s) => {
+        setSnapshot(s)
+        if (s.phase === 'done' && lastPhase !== 'done') setReviewOpen(true)
+        lastPhase = s.phase
+      },
+    })
+  }, [engine, takePhoto])
+
+  // Revoke photo URLs and silence speech when leaving the camera.
+  const photosRef = useRef(photos)
+  useEffect(() => {
+    photosRef.current = photos
+  }, [photos])
+  useEffect(
+    () => () => {
+      engine.voice.stop()
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.url))
+    },
+    [engine],
+  )
+
+  const onFrame = useCallback<FrameHandler>((kp, ctx, now) => engine.frame(kp, ctx, now), [engine])
+  const { stats } = usePoseTracking(videoRef, canvasRef, camera.status === 'ready' ? detector : null, onFrame)
+
+  // --- status line ---------------------------------------------------------
+
+  let message: string
+  if (camera.status === 'error') message = camera.message
+  else if (detectorState.status === 'error') message = `Model failed to load: ${detectorState.message}`
+  else if (camera.status !== 'ready') message = 'Starting camera…'
+  else if (detectorState.status === 'loading') message = 'Loading pose model…'
+  else message = snapshot.message
+
+  // Keep the frame clear while the person holds the pose.
+  const capturing = snapshot.phase === 'holding' || snapshot.phase === 'countdown' || snapshot.phase === 'shooting'
+
+  const shootAgain = () => {
+    setReviewOpen(false)
+    setAuto(true)
+    engine.rearm()
+  }
 
   return (
-    <div className="camera">
-      <div className={`stage${facing === 'user' ? ' mirrored' : ''}`}>
+    <div className={`camera${ringLight && mirrored ? ' ring-light' : ''}`}>
+      <div
+        className={`stage${mirrored ? ' mirrored' : ''}`}
+        onClick={() => template && setAuto((a) => !a)}
+        aria-label={auto ? 'Tap to pause auto capture' : 'Tap to resume auto capture'}
+      >
         <video ref={videoRef} playsInline muted />
         <canvas ref={canvasRef} />
       </div>
+      {flash && <div className="flash" />}
 
       <div className="hud">
-        <span className="status">{status}</span>
+        <div className="hud-row">
+          <button type="button" onClick={onExit}>
+            Close
+          </button>
+          {snapshot.score !== null && template && (
+            <span className={`score${snapshot.matched ? ' matched' : ''}`}>{Math.round(snapshot.score)}%</span>
+          )}
+        </div>
+        <p className={`message${snapshot.matched ? ' matched' : ''}`} aria-live="polite">
+          {snapshot.countdown === null ? message : ''}
+        </p>
+        {template && !auto && <p className="sub">Auto capture paused · tap to resume</p>}
         {detector && camera.status === 'ready' && (
-          <span className="metrics">
-            {stats.fps.toFixed(0)} fps · {stats.inferenceMs.toFixed(1)} ms · {detector.delegate}{' '}
-            {detector.variant}
-          </span>
+          <p className="metrics">
+            {stats.fps.toFixed(0)} fps · {stats.inferenceMs.toFixed(1)} ms · {detector.delegate} {detector.variant}
+          </p>
         )}
       </div>
 
-      <div className="controls">
-        <button type="button" onClick={onExit}>
-          Close
-        </button>
-        <button type="button" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}>
-          Flip camera
-        </button>
-        <button type="button" onClick={() => setVariant((v) => (v === 'lite' ? 'full' : 'lite'))}>
-          Model: {variant}
-        </button>
+      {snapshot.countdown !== null && <div className="countdown">{snapshot.countdown}</div>}
+
+      <div className={`bottom${capturing ? ' capturing' : ''}`}>
+        {posesOpen ? (
+          <PosePicker
+            selectedId={template?.id ?? null}
+            onSelect={(t) => {
+              setTemplate(t)
+              setPosesOpen(false)
+            }}
+          />
+        ) : (
+          <button type="button" className="pose-current" onClick={() => setPosesOpen(true)}>
+            {template ? `Pose: ${template.name}` : 'No pose guide'} · Change
+          </button>
+        )}
+
+        <div className="toggles">
+          <Toggle on={auto} onClick={() => setAuto((a) => !a)} disabled={!template}>
+            Auto
+          </Toggle>
+          <Toggle on={voiceOn} onClick={() => setVoiceOn((v) => !v)}>
+            Voice
+          </Toggle>
+          <Toggle on={flipPose} onClick={() => setFlipPose((f) => !f)} disabled={!template}>
+            Other side
+          </Toggle>
+          {mirrored && (
+            <Toggle on={ringLight} onClick={() => setRingLight((r) => !r)}>
+              Ring light
+            </Toggle>
+          )}
+          <Toggle on={showSkeleton} onClick={() => setShowSkeleton((s) => !s)}>
+            Skeleton
+          </Toggle>
+          <Toggle on={variant === 'full'} onClick={() => setVariant((v) => (v === 'lite' ? 'full' : 'lite'))}>
+            Accurate model
+          </Toggle>
+        </div>
+
+        <div className="shutter-row">
+          <button
+            type="button"
+            className="tray"
+            onClick={() => setReviewOpen(true)}
+            aria-label={`Your photos (${photos.length})`}
+          >
+            {photos.length > 0 ? <img src={photos[photos.length - 1].url} alt="" /> : <span>0</span>}
+          </button>
+          <button type="button" className="shutter" onClick={() => void takePhoto()} aria-label="Take photo" />
+          <button type="button" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}>
+            Flip
+          </button>
+        </div>
       </div>
+
+      {reviewOpen && (
+        <ReviewSheet
+          photos={photos}
+          onShootAgain={shootAgain}
+          onClose={() => setReviewOpen(false)}
+          onClear={() => {
+            photos.forEach((p) => URL.revokeObjectURL(p.url))
+            setPhotos([])
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+interface ToggleProps {
+  on: boolean
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}
+
+function Toggle({ on, onClick, disabled, children }: ToggleProps) {
+  return (
+    <button type="button" className={`toggle${on ? ' on' : ''}`} aria-pressed={on} onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
   )
 }
