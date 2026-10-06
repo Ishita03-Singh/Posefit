@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { templateFromPhoto } from '../pose/fromPhoto'
-import { type PoseTemplate, SCAN_TEMPLATE, type Shot, SHOT_LABELS } from '../pose/template'
+import { type PoseTemplate, type Shot, SHOT_LABELS } from '../pose/template'
 import { templateStore } from '../pose/templateStore'
-import { createPoseDetector, type PoseDetector } from '../vision/poseDetector'
+import { photoDetector, poseFromPhoto } from '../vision/photoPose'
 import { TemplateFigure } from './TemplateFigure'
 
 interface Props {
@@ -11,20 +10,12 @@ interface Props {
   onSaved: (template: PoseTemplate) => void
 }
 
-const nameFromFile = (file: string) =>
-  file
-    .replace(/\.[^.]+$/, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 40) || 'My pose'
-
 /**
  * Turns a photo (e.g. a Pinterest screenshot) into a pose template, entirely on the device.
  * The photo is only held in memory while this dialog is open; only the pose is saved.
  */
 export function ImportPose({ onClose, onSaved }: Props) {
-  const [detector, setDetector] = useState<PoseDetector | null>(null)
+  const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [draft, setDraft] = useState<PoseTemplate | null>(null)
@@ -34,26 +25,18 @@ export function ImportPose({ onClose, onSaved }: Props) {
   const [shot, setShot] = useState<Shot>('full_body')
   const urlRef = useRef<string | null>(null)
 
-  // A separate still-image detector ("full" model: more accurate, speed doesn't matter here).
   useEffect(() => {
     let cancelled = false
-    let created: PoseDetector | null = null
-    createPoseDetector('full', 'IMAGE')
-      .then((d) => {
-        if (cancelled) return d.landmarker.close()
-        created = d
-        setDetector(d)
-      })
+    photoDetector()
+      .then(() => !cancelled && setReady(true))
       .catch((e: unknown) => !cancelled && setLoadError(e instanceof Error ? e.message : String(e)))
     return () => {
       cancelled = true
-      created?.landmarker.close()
       if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     }
   }, [])
 
   async function onFile(file: File) {
-    if (!detector) return
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     const url = URL.createObjectURL(file)
     urlRef.current = url
@@ -62,19 +45,7 @@ export function ImportPose({ onClose, onSaved }: Props) {
     setError(null)
     setBusy(true)
     try {
-      const img = new Image()
-      img.src = url
-      await img.decode()
-      const landmarks = detector.landmarker.detect(img).landmarks[0]
-      if (!landmarks) throw new Error('No person found in this photo. Try one with a single, clearly visible person.')
-      const t = templateFromPhoto({
-        landmarks,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        name: nameFromFile(file.name),
-        ref: file.name,
-        neutral: SCAN_TEMPLATE,
-      })
+      const t = await poseFromPhoto(file, url)
       setDraft(t)
       setName(t.name)
       setShot(t.shot)
@@ -109,18 +80,18 @@ export function ImportPose({ onClose, onSaved }: Props) {
       {loadError ? (
         <p className="sheet-error">Couldn't load the pose model: {loadError}</p>
       ) : (
-        <label className={`file-pick${!detector ? ' disabled' : ''}`}>
+        <label className={`file-pick${!ready ? ' disabled' : ''}`}>
           <input
             type="file"
             accept="image/*"
-            disabled={!detector}
+            disabled={!ready}
             onChange={(e) => {
               const f = e.target.files?.[0]
               if (f) void onFile(f)
               e.target.value = ''
             }}
           />
-          {detector ? (photoUrl ? 'Choose another photo' : 'Choose a photo') : 'Loading pose model…'}
+          {ready ? (photoUrl ? 'Choose another photo' : 'Choose a photo') : 'Loading pose model…'}
         </label>
       )}
 
