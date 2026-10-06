@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "seated-steps",
+  "name": "Sitting on steps",
+  "description": "Seated facing the camera, knees up, forearms resting loosely between the knees. Shoot from slightly below eye level.",
+  "shot": "full_body",
+  "tags": [
+    "sitting",
+    "casual",
+    "street"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.047,
+      -1.4475
+    ],
+    "left_eye": [
+      0.118,
+      -1.5004
+    ],
+    "right_eye": [
+      -0.0113,
+      -1.514
+    ],
+    "left_ear": [
+      0.1994,
+      -1.4617
+    ],
+    "right_ear": [
+      -0.099,
+      -1.493
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.4977,
+      -0.3894
+    ],
+    "right_elbow": [
+      -0.4977,
+      -0.3894
+    ],
+    "left_wrist": [
+      0.3096,
+      0.1274
+    ],
+    "right_wrist": [
+      -0.3096,
+      0.1274
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ],
+    "left_knee": [
+      0.2897,
+      0.2975
+    ],
+    "right_knee": [
+      -0.2897,
+      0.2975
+    ],
+    "left_ankle": [
+      0.3326,
+      1.1164
+    ],
+    "right_ankle": [
+      -0.3326,
+      1.1164
+    ],
+    "left_heel": [
+      0.3326,
+      1.1764
+    ],
+    "right_heel": [
+      -0.3326,
+      1.1764
+    ],
+    "left_foot_index": [
+      0.3826,
+      1.2264
+    ],
+    "right_foot_index": [
+      -0.3826,
+      1.2264
+    ]
+  },
+  "key_joints": [
+    "left_knee",
+    "right_knee",
+    "left_wrist",
+    "right_wrist"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "arms-crossed",
+  "name": "Arms crossed",
+  "description": "Confident half-body shot with arms crossed and a slight head tilt.",
+  "shot": "half_body",
+  "tags": [
+    "confident",
+    "professional",
+    "portrait"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      -0.0314,
+      -1.4489
+    ],
+    "left_eye": [
+      0.0293,
+      -1.5133
+    ],
+    "right_eye": [
+      -0.1004,
+      -1.5042
+    ],
+    "left_ear": [
+      0.1162,
+      -1.4893
+    ],
+    "right_ear": [
+      -0.1831,
+      -1.4684
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.3727,
+      -0.5043
+    ],
+    "right_elbow": [
+      -0.3727,
+      -0.5043
+    ],
+    "left_wrist": [
+      -0.169,
+      -0.5998
+    ],
+    "right_wrist": [
+      0.169,
+      -0.4088
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "right_wrist",
+    "left_elbow",
+    "right_elbow"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

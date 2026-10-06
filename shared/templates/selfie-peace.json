@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "selfie-peace",
+  "name": "Peace sign selfie",
+  "description": "Phone held out with one arm, free hand making a peace sign by the cheek, head tilted.",
+  "shot": "selfie",
+  "tags": [
+    "selfie",
+    "playful"
+  ],
+  "frame": "head",
+  "keypoints": {
+    "nose": [
+      0.0781,
+      -0.4432
+    ],
+    "left_eye": [
+      0.1526,
+      -0.491
+    ],
+    "right_eye": [
+      0.0245,
+      -0.5135
+    ],
+    "left_ear": [
+      0.2311,
+      -0.4467
+    ],
+    "right_ear": [
+      -0.0644,
+      -0.4988
+    ],
+    "left_shoulder": [
+      0.39,
+      0.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      0.0
+    ],
+    "left_elbow": [
+      0.3416,
+      0.2748
+    ],
+    "left_wrist": [
+      0.2745,
+      -0.2711
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "nose",
+    "left_eye",
+    "right_eye"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

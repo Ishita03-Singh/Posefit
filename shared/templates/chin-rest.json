@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "chin-rest",
+  "name": "Chin on hand",
+  "description": "Hand resting lightly under the chin, head tilted toward it. Keep the touch light so the face isn't pushed.",
+  "shot": "half_body",
+  "tags": [
+    "portrait",
+    "soft",
+    "cafe"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.0727,
+      -1.4121
+    ],
+    "left_eye": [
+      0.1471,
+      -1.4599
+    ],
+    "right_eye": [
+      0.0191,
+      -1.4825
+    ],
+    "left_ear": [
+      0.2256,
+      -1.4156
+    ],
+    "right_ear": [
+      -0.0698,
+      -1.4677
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.2328,
+      -0.6629
+    ],
+    "right_elbow": [
+      -0.4763,
+      -0.386
+    ],
+    "left_wrist": [
+      0.0628,
+      -1.1859
+    ],
+    "right_wrist": [
+      -0.5147,
+      0.1626
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "left_elbow",
+    "nose"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "over-shoulder",
+  "name": "Look over the shoulder",
+  "description": "Back mostly to the camera, head turned to look over the shoulder.",
+  "shot": "half_body",
+  "tags": [
+    "portrait",
+    "glam",
+    "travel"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      -0.1349,
+      -1.4399
+    ],
+    "left_eye": [
+      -0.104,
+      -1.5028
+    ],
+    "right_eye": [
+      -0.2335,
+      -1.4915
+    ],
+    "left_ear": [
+      0.012,
+      -1.4829
+    ],
+    "right_ear": [
+      -0.2439,
+      -1.4605
+    ],
+    "left_shoulder": [
+      0.1648,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.1648,
+      -1.0
+    ],
+    "left_elbow": [
+      0.2189,
+      -0.3824
+    ],
+    "right_elbow": [
+      -0.2189,
+      -0.3824
+    ],
+    "left_wrist": [
+      0.2668,
+      0.1655
+    ],
+    "right_wrist": [
+      -0.2668,
+      0.1655
+    ],
+    "left_hip": [
+      0.0887,
+      0.0
+    ],
+    "right_hip": [
+      -0.0887,
+      0.0
+    ]
+  },
+  "key_joints": [
+    "nose",
+    "left_ear",
+    "right_ear",
+    "left_shoulder",
+    "right_shoulder"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

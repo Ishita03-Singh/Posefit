@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "id": "crossed-ankles",
+  "name": "Crossed ankles",
+  "description": "Standing with ankles crossed and hands loosely together in front. Soft, relaxed and elongates the legs.",
+  "shot": "full_body",
+  "tags": [
+    "standing",
+    "soft",
+    "elongating",
+    "outfit"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.0392,
+      -1.4483
+    ],
+    "left_eye": [
+      0.1092,
+      -1.5024
+    ],
+    "right_eye": [
+      -0.0203,
+      -1.5137
+    ],
+    "left_ear": [
+      0.1913,
+      -1.4651
+    ],
+    "right_ear": [
+      -0.1076,
+      -1.4912
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.5189,
+      -0.3935
+    ],
+    "right_elbow": [
+      -0.5189,
+      -0.3935
+    ],
+    "left_wrist": [
+      0.0976,
+      -0.04
+    ],
+    "right_wrist": [
+      -0.0976,
+      -0.04
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ],
+    "left_knee": [
+      0.1333,
+      0.8767
+    ],
+    "right_knee": [
+      -0.21,
+      0.88
+    ],
+    "left_ankle": [
+      -0.1201,
+      1.6565
+    ],
+    "right_ankle": [
+      -0.0959,
+      1.692
+    ],
+    "left_heel": [
+      -0.1201,
+      1.7165
+    ],
+    "right_heel": [
+      -0.0959,
+      1.752
+    ],
+    "left_foot_index": [
+      -0.0701,
+      1.7665
+    ],
+    "right_foot_index": [
+      -0.1459,
+      1.802
+    ]
+  },
+  "key_joints": [
+    "left_ankle",
+    "right_ankle",
+    "left_wrist",
+    "right_wrist"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

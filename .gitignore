@@ -24,3 +24,5 @@ Thumbs.db
 
 # Reference photos used for template authoring (may contain people)
 tools/reference_photos/
+out/
+tools/models/

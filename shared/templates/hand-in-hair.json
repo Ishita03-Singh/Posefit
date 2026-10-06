@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "id": "hand-in-hair",
+  "name": "Hand in hair",
+  "description": "One hand running through the hair, elbow up and out. Lengthens the body line and frames the face.",
+  "shot": "full_body",
+  "tags": [
+    "standing",
+    "glam",
+    "elongating"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      -0.0626,
+      -1.4456
+    ],
+    "left_eye": [
+      -0.0066,
+      -1.5141
+    ],
+    "right_eye": [
+      -0.1353,
+      -1.496
+    ],
+    "left_ear": [
+      0.0817,
+      -1.4962
+    ],
+    "right_ear": [
+      -0.2153,
+      -1.4545
+    ],
+    "left_shoulder": [
+      0.3895,
+      -0.9796
+    ],
+    "right_shoulder": [
+      -0.3895,
+      -1.0204
+    ],
+    "left_elbow": [
+      0.6995,
+      -1.5165
+    ],
+    "right_elbow": [
+      -0.4971,
+      -0.4098
+    ],
+    "left_wrist": [
+      0.1516,
+      -1.5645
+    ],
+    "right_wrist": [
+      -0.5451,
+      0.1381
+    ],
+    "left_hip": [
+      0.2092,
+      -0.0183
+    ],
+    "right_hip": [
+      -0.2092,
+      0.0183
+    ],
+    "left_knee": [
+      0.2399,
+      0.8612
+    ],
+    "right_knee": [
+      -0.1172,
+      0.8935
+    ],
+    "left_ankle": [
+      0.2542,
+      1.681
+    ],
+    "right_ankle": [
+      -0.2029,
+      1.709
+    ],
+    "left_heel": [
+      0.2542,
+      1.741
+    ],
+    "right_heel": [
+      -0.2029,
+      1.769
+    ],
+    "left_foot_index": [
+      0.3042,
+      1.791
+    ],
+    "right_foot_index": [
+      -0.2529,
+      1.819
+    ]
+  },
+  "key_joints": [
+    "left_elbow",
+    "left_wrist",
+    "right_knee"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

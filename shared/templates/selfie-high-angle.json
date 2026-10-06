@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "selfie-high-angle",
+  "name": "High angle selfie",
+  "description": "Phone held slightly above eye level, chin forward and down a little. Flattering for the jawline.",
+  "shot": "selfie",
+  "tags": [
+    "selfie",
+    "flattering",
+    "jawline"
+  ],
+  "frame": "head",
+  "keypoints": {
+    "nose": [
+      -0.0626,
+      -0.4456
+    ],
+    "left_eye": [
+      0.0053,
+      -0.5286
+    ],
+    "right_eye": [
+      -0.1508,
+      -0.5067
+    ],
+    "left_ear": [
+      0.1124,
+      -0.5069
+    ],
+    "right_ear": [
+      -0.2477,
+      -0.4563
+    ],
+    "left_shoulder": [
+      0.4727,
+      0.0
+    ],
+    "right_shoulder": [
+      -0.4727,
+      0.0
+    ]
+  },
+  "key_joints": [
+    "nose",
+    "left_eye",
+    "right_eye",
+    "left_shoulder",
+    "right_shoulder"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

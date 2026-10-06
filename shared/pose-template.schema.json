@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "Source": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "generated",
+            "photo"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "shot": {
+      "enum": [
+        "full_body",
+        "half_body",
+        "selfie"
+      ],
+      "title": "Shot",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "frame": {
+      "enum": [
+        "torso",
+        "head"
+      ],
+      "title": "Frame",
+      "type": "string"
+    },
+    "keypoints": {
+      "additionalProperties": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Keypoints",
+      "type": "object"
+    },
+    "key_joints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Key Joints",
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "shot",
+    "frame",
+    "keypoints",
+    "source"
+  ],
+  "title": "PoseTemplate",
+  "type": "object"
+}

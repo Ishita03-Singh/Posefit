@@ -96,3 +96,8 @@ export const BONES: Bone[] = [
 ]
 
 export const VISIBILITY_THRESHOLD = 0.5
+
+export const boneNames = (b: Bone): [LandmarkName, LandmarkName] => [
+  LANDMARK_NAMES[b.from],
+  LANDMARK_NAMES[b.to],
+]

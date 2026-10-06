@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "id": "victory-arms-up",
+  "name": "Arms up",
+  "description": "Both arms raised in a V, chin up. Energetic, works great on beaches and viewpoints.",
+  "shot": "full_body",
+  "tags": [
+    "standing",
+    "energetic",
+    "travel",
+    "beach"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.0,
+      -1.4972
+    ],
+    "left_eye": [
+      0.065,
+      -1.5573
+    ],
+    "right_eye": [
+      -0.065,
+      -1.5573
+    ],
+    "left_ear": [
+      0.15,
+      -1.5272
+    ],
+    "right_ear": [
+      -0.15,
+      -1.5272
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.7,
+      -1.5369
+    ],
+    "right_elbow": [
+      -0.7,
+      -1.5369
+    ],
+    "left_wrist": [
+      0.8881,
+      -2.0538
+    ],
+    "right_wrist": [
+      -0.8881,
+      -2.0538
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ],
+    "left_knee": [
+      0.3628,
+      0.8666
+    ],
+    "right_knee": [
+      -0.3628,
+      0.8666
+    ],
+    "left_ankle": [
+      0.4769,
+      1.6787
+    ],
+    "right_ankle": [
+      -0.4769,
+      1.6787
+    ],
+    "left_heel": [
+      0.4769,
+      1.7387
+    ],
+    "right_heel": [
+      -0.4769,
+      1.7387
+    ],
+    "left_foot_index": [
+      0.5269,
+      1.7887
+    ],
+    "right_foot_index": [
+      -0.5269,
+      1.7887
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "right_wrist",
+    "left_elbow",
+    "right_elbow"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

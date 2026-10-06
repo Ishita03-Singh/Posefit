@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "id": "walking-candid",
+  "name": "Candid walk",
+  "description": "Mid-stride, slightly turned, looking away from the camera. Ask the photographer to shoot in burst mode while you walk.",
+  "shot": "full_body",
+  "tags": [
+    "walking",
+    "candid",
+    "street",
+    "outfit"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.072,
+      -1.45
+    ],
+    "left_eye": [
+      0.1586,
+      -1.51
+    ],
+    "right_eye": [
+      0.0286,
+      -1.51
+    ],
+    "left_ear": [
+      0.1896,
+      -1.48
+    ],
+    "right_ear": [
+      -0.078,
+      -1.48
+    ],
+    "left_shoulder": [
+      0.3535,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.3535,
+      -1.0
+    ],
+    "left_elbow": [
+      0.415,
+      -0.4142
+    ],
+    "right_elbow": [
+      -0.2801,
+      -0.4781
+    ],
+    "left_wrist": [
+      0.4496,
+      0.0796
+    ],
+    "right_wrist": [
+      -0.1153,
+      -0.0702
+    ],
+    "left_hip": [
+      0.1903,
+      0.0
+    ],
+    "right_hip": [
+      -0.1903,
+      0.0
+    ],
+    "left_knee": [
+      0.2425,
+      0.7462
+    ],
+    "right_knee": [
+      -0.2364,
+      0.8788
+    ],
+    "left_ankle": [
+      0.2139,
+      1.5657
+    ],
+    "right_ankle": [
+      -0.3645,
+      1.6056
+    ],
+    "left_heel": [
+      0.2139,
+      1.6257
+    ],
+    "right_heel": [
+      -0.3645,
+      1.6656
+    ],
+    "left_foot_index": [
+      0.2639,
+      1.6757
+    ],
+    "right_foot_index": [
+      -0.4145,
+      1.7156
+    ]
+  },
+  "key_joints": [
+    "left_knee",
+    "right_knee",
+    "left_wrist",
+    "right_wrist",
+    "nose"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

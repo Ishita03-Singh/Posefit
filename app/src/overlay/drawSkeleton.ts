@@ -1,6 +1,6 @@
 import { BONES, type Keypoint, type Side, VISIBILITY_THRESHOLD } from '../pose/landmarks'
 
-const SIDE_COLORS: Record<Side, string> = {
+export const SIDE_COLORS: Record<Side, string> = {
   left: '#4fc3f7',
   right: '#ff8a65',
   center: '#ffffff',

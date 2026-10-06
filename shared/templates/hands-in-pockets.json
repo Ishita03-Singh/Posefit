@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "id": "hands-in-pockets",
+  "name": "Hands in pockets, turned",
+  "description": "Body turned about 35 degrees, hands in pockets, looking back at the camera. A turned body looks narrower than a square-on one.",
+  "shot": "full_body",
+  "tags": [
+    "standing",
+    "casual",
+    "slimming",
+    "street"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      -0.0206,
+      -1.4535
+    ],
+    "left_eye": [
+      0.0315,
+      -1.5092
+    ],
+    "right_eye": [
+      -0.098,
+      -1.5205
+    ],
+    "left_ear": [
+      0.1315,
+      -1.4703
+    ],
+    "right_ear": [
+      -0.1405,
+      -1.4941
+    ],
+    "left_shoulder": [
+      0.3195,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.3195,
+      -1.0
+    ],
+    "left_elbow": [
+      0.4799,
+      -0.4011
+    ],
+    "right_elbow": [
+      -0.4799,
+      -0.4011
+    ],
+    "left_wrist": [
+      0.3376,
+      0.1301
+    ],
+    "right_wrist": [
+      -0.3376,
+      0.1301
+    ],
+    "left_hip": [
+      0.172,
+      0.0
+    ],
+    "right_hip": [
+      -0.172,
+      0.0
+    ],
+    "left_knee": [
+      0.1106,
+      0.8779
+    ],
+    "right_knee": [
+      -0.2181,
+      0.8788
+    ],
+    "left_ankle": [
+      0.1393,
+      1.6974
+    ],
+    "right_ankle": [
+      -0.2181,
+      1.6988
+    ],
+    "left_heel": [
+      0.1393,
+      1.7574
+    ],
+    "right_heel": [
+      -0.2181,
+      1.7588
+    ],
+    "left_foot_index": [
+      0.1893,
+      1.8074
+    ],
+    "right_foot_index": [
+      -0.2681,
+      1.8088
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "right_wrist",
+    "left_shoulder",
+    "right_shoulder"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

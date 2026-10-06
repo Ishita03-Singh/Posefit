@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react(), basicSsl()],
   server: {
     host: true,
+    // Templates live in ../shared, outside the app root.
+    fs: { allow: ['..'] },
     proxy: {
       '/api': 'http://localhost:8000',
     },

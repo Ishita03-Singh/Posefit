@@ -8,6 +8,7 @@ dependencies = [
     "mediapipe>=1.0.1",
     "numpy>=2.5.3",
     "opencv-python-headless>=5.0.0.93",
+    "pydantic>=2.13.5",
 ]
 
 [dependency-groups]
@@ -15,3 +16,9 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
