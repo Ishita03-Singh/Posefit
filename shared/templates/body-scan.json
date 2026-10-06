@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "id": "body-scan",
+  "name": "Body scan",
+  "description": "Neutral A-pose used to measure the person's body shape. Not shown in the library.",
+  "shot": "full_body",
+  "tags": [
+    "system"
+  ],
+  "frame": "torso",
+  "keypoints": {
+    "nose": [
+      0.0,
+      -1.45
+    ],
+    "left_eye": [
+      0.065,
+      -1.51
+    ],
+    "right_eye": [
+      -0.065,
+      -1.51
+    ],
+    "left_ear": [
+      0.15,
+      -1.48
+    ],
+    "right_ear": [
+      -0.15,
+      -1.48
+    ],
+    "left_shoulder": [
+      0.39,
+      -1.0
+    ],
+    "right_shoulder": [
+      -0.39,
+      -1.0
+    ],
+    "left_elbow": [
+      0.6811,
+      -0.4526
+    ],
+    "right_elbow": [
+      -0.6811,
+      -0.4526
+    ],
+    "left_wrist": [
+      0.9048,
+      0.0499
+    ],
+    "right_wrist": [
+      -0.9048,
+      0.0499
+    ],
+    "left_hip": [
+      0.21,
+      0.0
+    ],
+    "right_hip": [
+      -0.21,
+      0.0
+    ],
+    "left_knee": [
+      0.3172,
+      0.8734
+    ],
+    "right_knee": [
+      -0.3172,
+      0.8734
+    ],
+    "left_ankle": [
+      0.3602,
+      1.6923
+    ],
+    "right_ankle": [
+      -0.3602,
+      1.6923
+    ],
+    "left_heel": [
+      0.3602,
+      1.7523
+    ],
+    "right_heel": [
+      -0.3602,
+      1.7523
+    ],
+    "left_foot_index": [
+      0.4102,
+      1.8023
+    ],
+    "right_foot_index": [
+      -0.4102,
+      1.8023
+    ]
+  },
+  "key_joints": [
+    "left_wrist",
+    "right_wrist",
+    "left_ankle",
+    "right_ankle"
+  ],
+  "source": {
+    "kind": "generated",
+    "ref": null
+  }
+}

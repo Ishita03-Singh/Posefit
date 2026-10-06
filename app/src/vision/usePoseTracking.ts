@@ -1,6 +1,7 @@
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
 import { type Keypoint, VISIBILITY_THRESHOLD } from '../pose/landmarks'
+import type { MaskView } from '../pose/shape'
 import type { PoseDetector } from './poseDetector'
 
 export interface TrackingStats {
@@ -11,7 +12,13 @@ export interface TrackingStats {
 }
 
 /** Called once per processed video frame with a canvas sized to the video. */
-export type FrameHandler = (keypoints: Keypoint[] | null, ctx: CanvasRenderingContext2D, now: number) => void
+export type FrameHandler = (
+  keypoints: Keypoint[] | null,
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  /** Person segmentation mask, only when segmentation is enabled on the detector. */
+  mask: MaskView | null,
+) => void
 
 const STATS_INTERVAL_MS = 500
 
@@ -68,7 +75,11 @@ export function usePoseTracking(
       frames++
 
       const keypoints = result.landmarks[0] ?? null
-      onFrameRef.current(keypoints, ctx, timestamp)
+      const mpMask = result.segmentationMasks?.[0]
+      const mask = mpMask ? { data: mpMask.getAsFloat32Array(), width: mpMask.width, height: mpMask.height } : null
+      onFrameRef.current(keypoints, ctx, timestamp, mask)
+      // Masks hold GPU memory until closed.
+      if (mpMask) result.close()
 
       const now = performance.now()
       if (now - windowStart >= STATS_INTERVAL_MS) {

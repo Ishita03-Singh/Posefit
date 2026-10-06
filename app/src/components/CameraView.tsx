@@ -23,6 +23,8 @@ const INITIAL_SNAPSHOT: SessionSnapshot = {
   phase: 'off',
   countdown: null,
   matched: false,
+  scanProgress: null,
+  hasShape: false,
 }
 
 export function CameraView({ onExit }: Props) {
@@ -55,6 +57,20 @@ export function CameraView({ onExit }: Props) {
   useEffect(() => engine.setAuto(auto), [engine, auto])
   useEffect(() => engine.setOptions({ showSkeleton, flipPose }), [engine, showSkeleton, flipPose])
   useEffect(() => engine.setVoice(voiceOn), [engine, voiceOn])
+
+  // First time on this device: scan the body so the ghost takes the person's own shape.
+  const autoScanned = useRef(false)
+  useEffect(() => {
+    if (camera.status !== 'ready' || !detector || engine.hasShape || autoScanned.current) return
+    autoScanned.current = true
+    engine.startScan()
+  }, [engine, camera.status, detector])
+
+  // Segmentation masks cost GPU readback every frame, so they are only on during the scan.
+  const scanning = snapshot.scanProgress !== null
+  useEffect(() => {
+    void detector?.landmarker.setOptions({ outputSegmentationMasks: scanning })
+  }, [detector, scanning])
 
   const takePhoto = useCallback(async () => {
     const video = videoRef.current
@@ -96,7 +112,7 @@ export function CameraView({ onExit }: Props) {
     [engine],
   )
 
-  const onFrame = useCallback<FrameHandler>((kp, ctx, now) => engine.frame(kp, ctx, now), [engine])
+  const onFrame = useCallback<FrameHandler>((kp, ctx, now, mask) => engine.frame(kp, ctx, now, mask), [engine])
   const { stats } = usePoseTracking(videoRef, canvasRef, camera.status === 'ready' ? detector : null, onFrame)
 
   // --- status line ---------------------------------------------------------
@@ -109,7 +125,8 @@ export function CameraView({ onExit }: Props) {
   else message = snapshot.message
 
   // Keep the frame clear while the person holds the pose.
-  const capturing = snapshot.phase === 'holding' || snapshot.phase === 'countdown' || snapshot.phase === 'shooting'
+  const capturing =
+    scanning || snapshot.phase === 'holding' || snapshot.phase === 'countdown' || snapshot.phase === 'shooting'
 
   const shootAgain = () => {
     setReviewOpen(false)
@@ -121,7 +138,7 @@ export function CameraView({ onExit }: Props) {
     <div className={`camera${ringLight && mirrored ? ' ring-light' : ''}`}>
       <div
         className={`stage${mirrored ? ' mirrored' : ''}`}
-        onClick={() => template && setAuto((a) => !a)}
+        onClick={() => template && !scanning && setAuto((a) => !a)}
         aria-label={auto ? 'Tap to pause auto capture' : 'Tap to resume auto capture'}
       >
         <video ref={videoRef} playsInline muted />
@@ -152,6 +169,17 @@ export function CameraView({ onExit }: Props) {
       {snapshot.countdown !== null && <div className="countdown">{snapshot.countdown}</div>}
 
       <div className={`bottom${capturing ? ' capturing' : ''}`}>
+        {scanning && (
+          <div className="scan-bar">
+            <span>Body scan</span>
+            <div className="scan-progress" aria-label="Scan progress">
+              <span style={{ width: `${Math.round((snapshot.scanProgress ?? 0) * 100)}%` }} />
+            </div>
+            <button type="button" onClick={() => engine.stopScan()}>
+              Skip
+            </button>
+          </div>
+        )}
         {posesOpen ? (
           <PosePicker
             selectedId={template?.id ?? null}
@@ -172,6 +200,9 @@ export function CameraView({ onExit }: Props) {
           </Toggle>
           <Toggle on={voiceOn} onClick={() => setVoiceOn((v) => !v)}>
             Voice
+          </Toggle>
+          <Toggle on={snapshot.hasShape} onClick={() => engine.startScan()}>
+            {snapshot.hasShape ? 'Rescan body' : 'Scan body'}
           </Toggle>
           <Toggle on={flipPose} onClick={() => setFlipPose((f) => !f)} disabled={!template}>
             Other side

@@ -1,9 +1,12 @@
 import { AMBER, GREEN, SCORED_BONES } from '../match/match'
 import type { BodyPoints } from '../pose/body'
-import { add, dist, mid, scale, sub, type Vec } from '../pose/geometry'
+import { add, clamp, dist, mid, scale, sub, type Vec } from '../pose/geometry'
+import { STANDARD } from '../pose/profile'
+import { type BodyShape, DEFAULT_SHAPE, TORSO_T } from '../pose/shape'
 
 /**
- * Soft, filled body silhouette for the target pose (the "ghost").
+ * Soft, filled body silhouette for the target pose (the "ghost"), drawn with the person's own
+ * measured body shape (see pose/shape.ts) so it looks like *them* in the target pose.
  *
  * All body parts are first drawn opaque onto an offscreen mask, so overlapping parts merge
  * into one clean shape; the mask is then composited translucently, with a glowing outline
@@ -14,18 +17,12 @@ export interface BodyStyle {
   /** Per SCORED_BONES index (null = not scored); tints limbs that need fixing. */
   boneScores: (number | null)[] | null
   matched: boolean
+  shape?: BodyShape
 }
 
-// Body part radii, in torso lengths.
-const R = {
-  upperArm: [0.085, 0.065],
-  forearm: [0.062, 0.048],
-  hand: 0.07,
-  thigh: [0.15, 0.1],
-  shin: [0.095, 0.06],
-  foot: [0.055, 0.035],
-  neck: 0.085,
-} as const
+// Hands and feet aren't measured (too small / often cropped); sizes in torso lengths.
+const HAND = 0.07
+const FOOT: [number, number] = [0.055, 0.035]
 
 const WHITE = '255, 255, 255'
 const MATCH = '80, 220, 120'
@@ -129,84 +126,102 @@ function torsoFrame(p: BodyPoints, u: number): Frame | null {
   return { ls, rs, lh, rh, midShoulder, midHip, acrossS, acrossH, down: norm(sub(midHip, midShoulder)) }
 }
 
-function torsoOutline(f: Frame, u: number): Vec[] {
+/**
+ * Torso outline from the person's measured half-widths along the shoulder→hip axis.
+ * `squash` < 1 narrows it for poses where the body is turned away from the camera.
+ */
+function torsoOutline(f: Frame, u: number, shape: BodyShape, squash: number): Vec[] {
+  const w = shape.torso
+  const axis = (t: number) => lerp(f.midShoulder, f.midHip, t)
   const side = (s: 1 | -1): Vec[] => {
-    const sh = s === 1 ? f.ls : f.rs
-    const hp = s === 1 ? f.lh : f.rh
-    const aS = scale(f.acrossS, s)
-    const aH = scale(f.acrossH, s)
-    const at = (t: number, out: number): Vec => add(lerp(sh, hp, t), scale(lerp(aS, aH, t), out * u))
+    const across = (t: number) => scale(norm(lerp(f.acrossS, f.acrossH, t)), s)
+    const at = (t: number, half: number): Vec => add(axis(t), scale(across(t), half * u * squash))
+    const up = scale(f.down, -0.045 * u)
     return [
-      add(f.midShoulder, add(scale(aS, 0.1 * u), scale(f.down, -0.03 * u))), // neck base
-      add(sh, add(scale(aS, 0.02 * u), scale(f.down, -0.05 * u))), // top of shoulder
-      add(sh, add(scale(aS, 0.1 * u), scale(f.down, 0.07 * u))), // shoulder cap
-      at(0.3, 0.06), // chest
-      at(0.62, -0.01), // waist
-      add(hp, add(scale(aH, 0.15 * u), scale(f.down, 0.02 * u))), // hip
-      add(hp, add(scale(aH, 0.11 * u), scale(f.down, 0.16 * u))), // upper thigh
+      add(add(f.midShoulder, scale(across(0), shape.neck * 1.25 * u)), up), // neck base
+      add(add(f.midShoulder, scale(across(0), w.shoulders * 0.8 * u * squash)), up), // top of shoulder
+      at(TORSO_T.shoulders, w.shoulders),
+      at(TORSO_T.chest, w.chest),
+      at(TORSO_T.waist, w.waist),
+      at(TORSO_T.hips, w.hips),
+      at(1.08, w.hips * 0.92), // upper thigh
     ]
   }
   const crotch = add(f.midHip, scale(f.down, 0.15 * u))
   return [...side(1), crotch, ...side(-1).reverse()]
 }
 
-function drawHead(ctx: CanvasRenderingContext2D, p: BodyPoints, f: Frame, u: number): void {
+function drawHead(ctx: CanvasRenderingContext2D, p: BodyPoints, f: Frame, u: number, shape: BodyShape): void {
   if (!p.nose) return
   const sides = [p.left_ear, p.right_ear, p.left_eye, p.right_eye].filter(Boolean) as Vec[]
-  const faceCenter = sides.length ? scale(sides.reduce(add), 1 / sides.length) : p.nose
   // Ears sit at mid-head height, so the face landmarks' centre is close to the head's centre.
-  const center = faceCenter
-  const ears = p.left_ear && p.right_ear ? dist(p.left_ear, p.right_ear) : 0
-  const rx = Math.max(ears * 0.72, 0.17 * u)
-  const ry = rx * 1.3
+  const center = sides.length ? scale(sides.reduce(add), 1 / sides.length) : p.nose
+  const rx = shape.head.halfWidth * u
+  const ry = Math.max(rx * 1.15, shape.head.top * u - dist(p.nose, center))
   const eyeLine = p.left_ear && p.right_ear ? sub(p.left_ear, p.right_ear) : f.acrossS
   const tilt = Math.atan2(eyeLine[1], eyeLine[0])
 
   // "Down" in the head's own frame: (0, 1) rotated by the head tilt.
   const chin = add(center, scale([-Math.sin(tilt), Math.cos(tilt)], ry * 0.85))
-  taper(ctx, f.midShoulder, chin, R.neck * u * 1.1, R.neck * u)
+  taper(ctx, f.midShoulder, chin, shape.neck * u * 1.1, shape.neck * u)
   ctx.beginPath()
   ctx.ellipse(center[0], center[1], rx, ry, tilt, 0, Math.PI * 2)
   ctx.fill()
 }
 
-function drawLimbs(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number): void {
+function limbRadii(shape: BodyShape, part: 'elbow' | 'hand' | 'knee' | 'foot'): [number, number] {
+  return part === 'elbow' ? shape.upperArm : part === 'hand' ? shape.forearm : part === 'knee' ? shape.thigh : shape.shin
+}
+
+function drawLimbs(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number, shape: BodyShape): void {
   for (const side of ['left', 'right'] as const) {
     const sh = p[`${side}_shoulder`]
     const el = p[`${side}_elbow`]
     const wr = p[`${side}_wrist`]
-    if (sh && el) taper(ctx, sh, el, R.upperArm[0] * u, R.upperArm[1] * u)
+    if (sh && el) taper(ctx, sh, el, shape.upperArm[0] * u, shape.upperArm[1] * u)
     if (el && wr) {
-      taper(ctx, el, wr, R.forearm[0] * u, R.forearm[1] * u)
+      taper(ctx, el, wr, shape.forearm[0] * u, shape.forearm[1] * u)
       const hand = add(wr, scale(norm(sub(wr, el)), 0.07 * u))
       ctx.beginPath()
-      ctx.ellipse(hand[0], hand[1], R.hand * u * 0.8, R.hand * u, Math.atan2(wr[1] - el[1], wr[0] - el[0]) - Math.PI / 2, 0, Math.PI * 2)
+      ctx.ellipse(hand[0], hand[1], HAND * u * 0.8, HAND * u, Math.atan2(wr[1] - el[1], wr[0] - el[0]) - Math.PI / 2, 0, Math.PI * 2)
       ctx.fill()
     }
 
     const hp = p[`${side}_hip`]
     const kn = p[`${side}_knee`]
     const an = p[`${side}_ankle`]
-    if (hp && kn) taper(ctx, hp, kn, R.thigh[0] * u, R.thigh[1] * u)
-    if (kn && an) taper(ctx, kn, an, R.shin[0] * u, R.shin[1] * u)
+    if (hp && kn) taper(ctx, hp, kn, shape.thigh[0] * u, shape.thigh[1] * u)
+    if (kn && an) taper(ctx, kn, an, shape.shin[0] * u, shape.shin[1] * u)
     const toe = p[`${side}_foot_index`]
-    if (an && toe) taper(ctx, an, toe, R.foot[0] * u, R.foot[1] * u)
+    if (an && toe) taper(ctx, an, toe, FOOT[0] * u, FOOT[1] * u)
     const heel = p[`${side}_heel`]
-    if (an && heel) taper(ctx, an, heel, R.foot[0] * u, R.foot[0] * u * 0.9)
+    if (an && heel) taper(ctx, an, heel, FOOT[0] * u, FOOT[0] * u * 0.9)
   }
 }
 
+/** How much the pose's shoulders are narrowed relative to this person's (body turned away). */
+function turnSquash(f: Frame, u: number, shape: BodyShape): number {
+  const own = (shape.lengths.shoulderWidth ?? STANDARD.shoulderWidth) * u
+  return clamp(dist(f.ls, f.rs) / own, 0.4, 1)
+}
+
 /** Opaque silhouette of the whole body onto ctx (any fill style). */
-function drawSilhouette(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number): void {
+function drawSilhouette(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number, shape: BodyShape): void {
   const f = torsoFrame(p, u)
   if (!f) return
-  smoothClosed(ctx, torsoOutline(f, u))
-  drawHead(ctx, p, f, u)
-  drawLimbs(ctx, p, u)
+  smoothClosed(ctx, torsoOutline(f, u, shape, turnSquash(f, u, shape)))
+  drawHead(ctx, p, f, u, shape)
+  drawLimbs(ctx, p, u, shape)
 }
 
 /** Limb segments per scored bone, for tinting the parts that need fixing. */
-function drawBoneTints(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number, scores: (number | null)[]): void {
+function drawBoneTints(
+  ctx: CanvasRenderingContext2D,
+  p: BodyPoints,
+  u: number,
+  scores: (number | null)[],
+  shape: BodyShape,
+): void {
   SCORED_BONES.forEach((bone, i) => {
     const s = scores[i]
     if (s === null || s >= GREEN || bone.part === 'torso') return
@@ -214,7 +229,7 @@ function drawBoneTints(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number, 
     if (bone.part === 'head') {
       if (p.nose) {
         ctx.beginPath()
-        ctx.arc(p.nose[0], p.nose[1] - 0.05 * u, 0.15 * u, 0, Math.PI * 2)
+        ctx.arc(p.nose[0], p.nose[1] - 0.05 * u, shape.head.halfWidth * 0.8 * u, 0, Math.PI * 2)
         ctx.fill()
       }
       return
@@ -222,13 +237,13 @@ function drawBoneTints(ctx: CanvasRenderingContext2D, p: BodyPoints, u: number, 
     const a = p[bone.from as keyof BodyPoints]
     const b = p[bone.to as keyof BodyPoints]
     if (!a || !b) return
-    const r =
-      bone.part === 'elbow' ? R.upperArm : bone.part === 'hand' ? R.forearm : bone.part === 'knee' ? R.thigh : R.shin
+    const r = limbRadii(shape, bone.part)
     taper(ctx, a, b, r[0] * u * 0.9, r[1] * u * 0.9)
   })
 }
 
 export function drawBody(ctx: CanvasRenderingContext2D, points: BodyPoints, unit: number, style: BodyStyle): void {
+  const shape = style.shape ?? DEFAULT_SHAPE
   const { width, height } = ctx.canvas
   const mw = Math.max(1, Math.round(width * MASK_SCALE))
   const mh = Math.max(1, Math.round(height * MASK_SCALE))
@@ -244,7 +259,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, points: BodyPoints, unit
   m.save()
   m.scale(MASK_SCALE, MASK_SCALE)
   m.fillStyle = '#fff'
-  drawSilhouette(m, points, unit)
+  drawSilhouette(m, points, unit, shape)
   m.restore()
 
   // 2. Outline ring: dilate the mask by stamping it around a circle, then cut the mask out.
@@ -278,5 +293,5 @@ export function drawBody(ctx: CanvasRenderingContext2D, points: BodyPoints, unit
   ctx.drawImage(ring, 0, 0, width, height)
   ctx.restore()
 
-  if (style.boneScores && !style.matched) drawBoneTints(ctx, points, unit, style.boneScores)
+  if (style.boneScores && !style.matched) drawBoneTints(ctx, points, unit, style.boneScores, shape)
 }

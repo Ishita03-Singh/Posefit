@@ -69,6 +69,11 @@ export class BodyProfile {
     return r === undefined ? 1 : clamp(r / STANDARD[segment], 0.75, 1.3)
   }
 
+  /** Starts from measured proportions (e.g. from the body scan) instead of averages. */
+  seed(ratios: Partial<Record<Segment, number>>): void {
+    this.ratios = { ...ratios }
+  }
+
   reset(): void {
     this.ratios = {}
   }

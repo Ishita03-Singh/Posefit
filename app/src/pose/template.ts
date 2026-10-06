@@ -33,6 +33,11 @@ const modules = import.meta.glob<PoseTemplate>('../../../shared/templates/*.json
   import: 'default',
 })
 
-export const TEMPLATES: PoseTemplate[] = Object.values(modules)
-  .filter((t) => t.schema_version === 1)
-  .sort((a, b) => a.name.localeCompare(b.name))
+const ALL: PoseTemplate[] = Object.values(modules).filter((t) => t.schema_version === 1)
+
+// "system" templates (e.g. the body scan pose) are used by the app, not offered as poses.
+export const TEMPLATES: PoseTemplate[] = ALL.filter((t) => !t.tags.includes('system')).sort((a, b) =>
+  a.name.localeCompare(b.name),
+)
+
+export const SCAN_TEMPLATE: PoseTemplate = ALL.find((t) => t.id === 'body-scan')!

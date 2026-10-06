@@ -34,6 +34,20 @@ class Spec:
 
 SPECS: list[Spec] = [
     Spec(
+        id="body-scan",
+        name="Body scan",
+        description="Neutral A-pose used to measure the person's body shape. Not shown in the library.",
+        shot="full_body",
+        tags=["system"],
+        key_joints=["left_wrist", "right_wrist", "left_ankle", "right_ankle"],
+        pose=Pose(
+            left_arm=Limb(28, 24),
+            right_arm=Limb(28, 24),
+            left_leg=Limb(7, 3),
+            right_leg=Limb(7, 3),
+        ),
+    ),
+    Spec(
         id="classic-hand-on-hip",
         name="Classic hand on hip",
         description="Weight on one leg, opposite hand on the waist. Creates an S-curve "
